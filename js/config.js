@@ -16,7 +16,7 @@ export const CONFIG = {
   APPROVAL_SECRET: 'insocialidade-approve-2026',
 
   // Chat ID do administrador (Telegram)
-  TELEGRAM_ADMIN_CHAT_ID: '8773138632',
+  TELEGRAM_ADMIN_CHAT_ID: '8670179404',
 
   APP_NAME: 'Insocialidade',
   LOGIN_PAGE: 'index.html',

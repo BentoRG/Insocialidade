@@ -7,7 +7,7 @@
 const N8N_BASE = process.env.N8N_BASE_URL || 'https://n8n.timgo.uk';
 const N8N_API_KEY = process.env.N8N_API_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '8773138632';
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '8670179404';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'insocialidade-session-v1';
 const APPROVAL_SECRET = process.env.APPROVAL_SECRET || 'insocialidade-approve-2026';
 const WEBHOOK_URL = `${N8N_BASE}/webhook/insocialidade-auth`;
