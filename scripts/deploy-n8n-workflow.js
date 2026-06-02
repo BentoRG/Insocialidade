@@ -236,11 +236,13 @@ if (!cq) {
 
 const adminId = String(TELEGRAM_CHAT_ID);
 if (String(cq.from?.id) !== adminId) {
-  await telegramApi.call(this, 'answerCallbackQuery', {
-    callback_query_id: cq.id,
-    text: 'Você não tem permissão para isso.',
-    show_alert: true,
-  });
+  try {
+    await telegramApi.call(this, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: 'Você não tem permissão para isso.',
+      show_alert: true,
+    });
+  } catch (err) {}
   return [{ json: { ok: true } }];
 }
 
@@ -250,34 +252,42 @@ const modAction = raw.slice(0, sep);
 const username = raw.slice(sep + 1).trim().toLowerCase();
 
 if (!['approve', 'reject'].includes(modAction) || !/^[a-z0-9_]{3,20}$/.test(username)) {
-  await telegramApi.call(this, 'answerCallbackQuery', {
-    callback_query_id: cq.id,
-    text: 'Ação inválida.',
-    show_alert: true,
-  });
+  try {
+    await telegramApi.call(this, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: 'Ação inválida.',
+      show_alert: true,
+    });
+  } catch (err) {}
   return [{ json: { ok: true } }];
 }
 
 const result = await moderateUser(username, modAction);
 if (!result.ok) {
-  await telegramApi.call(this, 'answerCallbackQuery', {
-    callback_query_id: cq.id,
-    text: result.error,
-    show_alert: true,
-  });
+  try {
+    await telegramApi.call(this, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: result.error,
+      show_alert: true,
+    });
+  } catch (err) {}
   return [{ json: { ok: true } }];
 }
 
-await telegramApi.call(this, 'answerCallbackQuery', {
-  callback_query_id: cq.id,
-  text: modAction === 'approve' ? 'Usuário aprovado!' : 'Usuário rejeitado.',
-});
+try {
+  await telegramApi.call(this, 'answerCallbackQuery', {
+    callback_query_id: cq.id,
+    text: modAction === 'approve' ? 'Usuário aprovado!' : 'Usuário rejeitado.',
+  });
+} catch (err) {}
 
-await telegramApi.call(this, 'editMessageText', {
-  chat_id: cq.message.chat.id,
-  message_id: cq.message.message_id,
-  text: result.text,
-});
+try {
+  await telegramApi.call(this, 'editMessageText', {
+    chat_id: cq.message.chat.id,
+    message_id: cq.message.message_id,
+    text: result.text,
+  });
+} catch (err) {}
 
 return [{ json: { ok: true } }];
 `.trim();
