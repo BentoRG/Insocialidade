@@ -1,31 +1,67 @@
 #!/usr/bin/env node
 /**
- * Cria e ativa o workflow "Insocialidade Auth" no n8n.
- * Uso: N8N_API_KEY=... node scripts/deploy-n8n-workflow.js
+ * Deploy do workflow "Insocialidade Auth" no n8n.
+ *
+ * Requer .env na raiz do projeto (não commitado) com:
+ *   N8N_API_KEY=...
+ *   TELEGRAM_BOT_TOKEN=8773138632:...   (@InsocialidadeBot via @BotFather)
+ *   TELEGRAM_ADMIN_CHAT_ID=8670179404
  */
+
+const fs = require('fs');
+const path = require('path');
+
+function loadEnvFile() {
+  const envPath = path.join(process.cwd(), '.env');
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadEnvFile();
 
 const N8N_BASE = process.env.N8N_BASE_URL || 'https://n8n.timgo.uk';
 const N8N_API_KEY = process.env.N8N_API_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '8670179404';
+const TELEGRAM_BOT_ID = process.env.TELEGRAM_BOT_ID || '8773138632';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'insocialidade-session-v1';
 const APPROVAL_SECRET = process.env.APPROVAL_SECRET || 'insocialidade-approve-2026';
-const WEBHOOK_URL = `${N8N_BASE}/webhook/insocialidade-auth`;
+const TELEGRAM_WEBHOOK_URL = `${N8N_BASE}/webhook/insocialidade-telegram`;
 
 if (!N8N_API_KEY) {
-  console.error('Defina N8N_API_KEY');
+  console.error('Defina N8N_API_KEY no .env ou no ambiente.');
   process.exit(1);
 }
 
-const AUTH_CODE = `
+if (!TELEGRAM_BOT_TOKEN) {
+  console.error('Defina TELEGRAM_BOT_TOKEN no .env (token do @InsocialidadeBot via @BotFather).');
+  process.exit(1);
+}
+
+const SHARED_HEADER = `
 const SESSION_SECRET = ${JSON.stringify(SESSION_SECRET)};
-const APPROVAL_SECRET = ${JSON.stringify(APPROVAL_SECRET)};
 const TELEGRAM_BOT_TOKEN = ${JSON.stringify(TELEGRAM_BOT_TOKEN)};
 const TELEGRAM_CHAT_ID = ${JSON.stringify(TELEGRAM_CHAT_ID)};
-const WEBHOOK_URL = ${JSON.stringify(WEBHOOK_URL)};
 
 const staticData = $getWorkflowStaticData('global');
 if (!staticData.users) staticData.users = {};
+
+async function telegramApi(method, body) {
+  return this.helpers.httpRequest({
+    method: 'POST',
+    url: 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/' + method,
+    body,
+    json: true,
+  });
+}
 
 function simpleHash(input) {
   let hash = 5381;
@@ -63,28 +99,55 @@ function verifyToken(token) {
   }
 }
 
-async function sendTelegram(text) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
-  try {
-    await this.helpers.httpRequest({
-      method: 'POST',
-      url: 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage',
-      body: { chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown', disable_web_page_preview: true },
-      json: true,
-    });
-  } catch (err) {
-    // Cadastro continua mesmo se o Telegram falhar (ex.: chat ID inválido ou bot não iniciado)
-  }
-}
-
 function publicProfile(user) {
   return { username: user.username, character_color: user.character_color, status: user.status };
 }
 
+async function sendApprovalRequest(username, characterColor) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  try {
+    await telegramApi.call(this, 'sendMessage', {
+      chat_id: TELEGRAM_CHAT_ID,
+      text:
+        '🎮 Novo cadastro — Insocialidade\\n\\n' +
+        '👤 Usuário: ' + username + '\\n' +
+        '🎨 Cor: ' + characterColor + '\\n\\n' +
+        'Aprove ou rejeite:',
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '✅ Aprovar', callback_data: 'approve:' + username },
+          { text: '❌ Não aprovar', callback_data: 'reject:' + username },
+        ]],
+      },
+    });
+  } catch (err) {
+    // cadastro continua mesmo se o Telegram falhar
+  }
+}
+
+async function moderateUser(username, modAction) {
+  const user = staticData.users[username];
+  if (!user) return { ok: false, error: 'Usuário não encontrado.' };
+  user.status = modAction === 'approve' ? 'active' : 'rejected';
+  return {
+    ok: true,
+    text:
+      '🎮 Insocialidade — cadastro\\n\\n' +
+      '👤 ' + username + '\\n' +
+      '🎨 ' + user.character_color + '\\n\\n' +
+      (modAction === 'approve'
+        ? '✅ Aprovado — já pode entrar.'
+        : '❌ Não aprovado.'),
+  };
+}
+`.trim();
+
+const AUTH_CODE = `
+${SHARED_HEADER}
+
 const input = $input.first().json;
-const query = input.query || {};
 const body = input.body || {};
-const action = body.action || query.action;
+const action = body.action;
 
 async function handleRegister() {
   const username = String(body.username || '').trim().toLowerCase();
@@ -113,17 +176,7 @@ async function handleRegister() {
     createdAt: new Date().toISOString(),
   };
 
-  const approveUrl = WEBHOOK_URL + '?action=approve&secret=' + encodeURIComponent(APPROVAL_SECRET) + '&username=' + encodeURIComponent(username);
-  const rejectUrl = WEBHOOK_URL + '?action=reject&secret=' + encodeURIComponent(APPROVAL_SECRET) + '&username=' + encodeURIComponent(username);
-
-  await sendTelegram.call(this,
-    '🎮 *Novo cadastro — Insocialidade*\\n\\n' +
-    '👤 Usuário: \`' + username + '\`\\n' +
-    '🎨 Cor: \`' + characterColor + '\`\\n\\n' +
-    '[✅ Aprovar](' + approveUrl + ')\\n' +
-    '[❌ Rejeitar](' + rejectUrl + ')'
-  );
-
+  await sendApprovalRequest.call(this, username, characterColor);
   return [{ json: { ok: true, message: 'Cadastro pendente de aprovação.' } }];
 }
 
@@ -160,46 +213,73 @@ function handleSession() {
   return [{ json: { ok: true, profile: publicProfile(user) } }];
 }
 
-async function handleModeration() {
-  const secret = query.secret || body.secret;
-  const username = String(query.username || body.username || '').trim().toLowerCase();
-  const modAction = action;
-
-  if (secret !== APPROVAL_SECRET) {
-    return [{ json: { ok: false, error: 'Acesso negado.', httpStatus: 403 } }];
-  }
-  const user = staticData.users[username];
-  if (!user) {
-    return [{ json: { ok: false, error: 'Usuário não encontrado.', httpStatus: 404 } }];
-  }
-
-  user.status = modAction === 'approve' ? 'active' : 'rejected';
-  await sendTelegram.call(this,
-    (modAction === 'approve' ? '✅' : '❌') + ' Usuário \`' + username + '\` foi ' +
-    (modAction === 'approve' ? 'aprovado' : 'rejeitado') + '.'
-  );
-
-  return [{
-    json: {
-      ok: true,
-      html: modAction === 'approve'
-        ? '<h2>Conta aprovada!</h2><p>O usuário <strong>' + username + '</strong> já pode entrar.</p>'
-        : '<h2>Conta rejeitada</h2><p>O usuário <strong>' + username + '</strong> foi rejeitado.</p>',
-    },
-  }];
-}
-
 return (async () => {
   switch (action) {
     case 'register': return await handleRegister();
     case 'login': return await handleLogin();
     case 'session': return handleSession();
-    case 'approve':
-    case 'reject': return await handleModeration();
     default:
       return [{ json: { ok: false, error: 'Ação inválida.', httpStatus: 400 } }];
   }
 })();
+`.trim();
+
+const TELEGRAM_CODE = `
+${SHARED_HEADER}
+
+const update = $input.first().json.body || {};
+const cq = update.callback_query;
+
+if (!cq) {
+  return [{ json: { ok: true } }];
+}
+
+const adminId = String(TELEGRAM_CHAT_ID);
+if (String(cq.from?.id) !== adminId) {
+  await telegramApi.call(this, 'answerCallbackQuery', {
+    callback_query_id: cq.id,
+    text: 'Você não tem permissão para isso.',
+    show_alert: true,
+  });
+  return [{ json: { ok: true } }];
+}
+
+const raw = String(cq.data || '');
+const sep = raw.indexOf(':');
+const modAction = raw.slice(0, sep);
+const username = raw.slice(sep + 1).trim().toLowerCase();
+
+if (!['approve', 'reject'].includes(modAction) || !/^[a-z0-9_]{3,20}$/.test(username)) {
+  await telegramApi.call(this, 'answerCallbackQuery', {
+    callback_query_id: cq.id,
+    text: 'Ação inválida.',
+    show_alert: true,
+  });
+  return [{ json: { ok: true } }];
+}
+
+const result = await moderateUser(username, modAction);
+if (!result.ok) {
+  await telegramApi.call(this, 'answerCallbackQuery', {
+    callback_query_id: cq.id,
+    text: result.error,
+    show_alert: true,
+  });
+  return [{ json: { ok: true } }];
+}
+
+await telegramApi.call(this, 'answerCallbackQuery', {
+  callback_query_id: cq.id,
+  text: modAction === 'approve' ? 'Usuário aprovado!' : 'Usuário rejeitado.',
+});
+
+await telegramApi.call(this, 'editMessageText', {
+  chat_id: cq.message.chat.id,
+  message_id: cq.message.message_id,
+  text: result.text,
+});
+
+return [{ json: { ok: true } }];
 `.trim();
 
 const workflow = {
@@ -210,9 +290,7 @@ const workflow = {
         httpMethod: 'POST',
         path: 'insocialidade-auth',
         responseMode: 'responseNode',
-        options: {
-          allowedOrigins: '*',
-        },
+        options: { allowedOrigins: '*' },
       },
       id: 'webhook-post',
       name: 'Webhook POST',
@@ -223,19 +301,17 @@ const workflow = {
     },
     {
       parameters: {
-        httpMethod: 'GET',
-        path: 'insocialidade-auth',
+        httpMethod: 'POST',
+        path: 'insocialidade-telegram',
         responseMode: 'responseNode',
-        options: {
-          allowedOrigins: '*',
-        },
+        options: {},
       },
-      id: 'webhook-get',
-      name: 'Webhook GET',
+      id: 'webhook-telegram',
+      name: 'Webhook Telegram',
       type: 'n8n-nodes-base.webhook',
       typeVersion: 2,
-      position: [0, 200],
-      webhookId: 'insocialidade-auth-get',
+      position: [0, 220],
+      webhookId: 'insocialidade-telegram-hook',
     },
     {
       parameters: { jsCode: AUTH_CODE, mode: 'runOnceForAllItems' },
@@ -243,48 +319,46 @@ const workflow = {
       name: 'Auth Handler POST',
       type: 'n8n-nodes-base.code',
       typeVersion: 2,
-      position: [260, 0],
+      position: [280, 0],
     },
     {
-      parameters: { jsCode: AUTH_CODE, mode: 'runOnceForAllItems' },
-      id: 'auth-code-get',
-      name: 'Auth Handler GET',
+      parameters: { jsCode: TELEGRAM_CODE, mode: 'runOnceForAllItems' },
+      id: 'telegram-code',
+      name: 'Telegram Callback Handler',
       type: 'n8n-nodes-base.code',
       typeVersion: 2,
-      position: [260, 200],
+      position: [280, 220],
     },
     {
       parameters: {
         respondWith: 'json',
         responseBody: '={{ $json }}',
-        options: {
-          responseCode: '={{ $json.httpStatus || 200 }}',
-        },
+        options: { responseCode: '={{ $json.httpStatus || 200 }}' },
       },
       id: 'respond-post',
       name: 'Respond POST',
       type: 'n8n-nodes-base.respondToWebhook',
       typeVersion: 1.1,
-      position: [520, 0],
+      position: [540, 0],
     },
     {
       parameters: {
-        respondWith: 'text',
-        responseBody: '=<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insocialidade</title><style>body{font-family:sans-serif;background:#222233;color:#f8f3e6;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}.card{background:#2a2a3d;padding:2rem;border-radius:12px;border:1px solid #474b6b;max-width:420px;text-align:center}a{color:#b89b6d}</style></head><body><div class="card">{{ $json.html }}<p><a href="index.html">Voltar ao login</a></p></div></body></html>',
+        respondWith: 'json',
+        responseBody: '={"ok":true}',
         options: { responseCode: 200 },
       },
-      id: 'respond-get',
-      name: 'Respond GET',
+      id: 'respond-telegram',
+      name: 'Respond Telegram',
       type: 'n8n-nodes-base.respondToWebhook',
       typeVersion: 1.1,
-      position: [520, 200],
+      position: [540, 220],
     },
   ],
   connections: {
     'Webhook POST': { main: [[{ node: 'Auth Handler POST', type: 'main', index: 0 }]] },
-    'Webhook GET': { main: [[{ node: 'Auth Handler GET', type: 'main', index: 0 }]] },
+    'Webhook Telegram': { main: [[{ node: 'Telegram Callback Handler', type: 'main', index: 0 }]] },
     'Auth Handler POST': { main: [[{ node: 'Respond POST', type: 'main', index: 0 }]] },
-    'Auth Handler GET': { main: [[{ node: 'Respond GET', type: 'main', index: 0 }]] },
+    'Telegram Callback Handler': { main: [[{ node: 'Respond Telegram', type: 'main', index: 0 }]] },
   },
   settings: { executionOrder: 'v1' },
 };
@@ -303,7 +377,66 @@ async function api(method, path, body) {
   return text ? JSON.parse(text) : null;
 }
 
+async function verifyTelegramBot() {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(`Token Telegram inválido: ${data.description}`);
+  }
+
+  const bot = data.result;
+  console.log(`Bot: @${bot.username} (id ${bot.id})`);
+
+  if (String(bot.id) !== String(TELEGRAM_BOT_ID)) {
+    console.warn(
+      `Aviso: TELEGRAM_BOT_ID esperado ${TELEGRAM_BOT_ID}, bot retornou ${bot.id}. Continuando mesmo assim.`
+    );
+  }
+
+  if (bot.username !== 'InsocialidadeBot') {
+    console.warn(`Aviso: esperado @InsocialidadeBot, recebido @${bot.username}`);
+  }
+
+  return bot;
+}
+
+async function configureTelegramWebhook() {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: TELEGRAM_WEBHOOK_URL,
+      allowed_updates: ['callback_query'],
+      drop_pending_updates: true,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(`setWebhook falhou: ${data.description}`);
+  }
+  console.log('Telegram webhook:', TELEGRAM_WEBHOOK_URL);
+}
+
+async function testAdminMessage() {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: 'Insocialidade: bot configurado. Novos cadastros chegarão aqui com botões de aprovação.',
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(
+      `Não foi possível enviar mensagem ao admin (${TELEGRAM_CHAT_ID}): ${data.description}. Envie /start para @InsocialidadeBot.`
+    );
+  }
+}
+
 async function main() {
+  await verifyTelegramBot();
+
   const existing = await api('GET', '/workflows?limit=100');
   const found = existing.data?.find((w) => w.name === 'Insocialidade Auth');
 
@@ -323,10 +456,15 @@ async function main() {
 
   await api('POST', `/workflows/${workflowId}/activate`);
   console.log('Workflow ativo:', workflowId);
-  console.log('Webhook:', `${N8N_BASE}/webhook/insocialidade-auth`);
+
+  await configureTelegramWebhook();
+  await testAdminMessage();
+
+  console.log('Auth API:', `${N8N_BASE}/webhook/insocialidade-auth`);
+  console.log('Admin chat:', TELEGRAM_CHAT_ID);
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err.message || err);
   process.exit(1);
 });

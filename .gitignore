@@ -3,4 +3,5 @@ node_modules/
 
 # Secrets locais (nunca commitar)
 .env
-.env.*
+.env.local
+.env.*.local

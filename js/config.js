@@ -15,8 +15,11 @@ export const CONFIG = {
   // Segredo nos links de aprovação/rejeição enviados ao Telegram
   APPROVAL_SECRET: 'insocialidade-approve-2026',
 
-  // Chat ID do administrador (Telegram)
+  // Chat ID do administrador que recebe pedidos de aprovação (@InsocialidadeBot)
   TELEGRAM_ADMIN_CHAT_ID: '8670179404',
+
+  // ID numérico do @InsocialidadeBot (BotFather)
+  TELEGRAM_BOT_ID: '8773138632',
 
   APP_NAME: 'Insocialidade',
   LOGIN_PAGE: 'index.html',
