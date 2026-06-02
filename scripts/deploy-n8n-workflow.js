@@ -111,31 +111,20 @@ const COLOR_LABELS = {
   '#f8f3e6': 'Creme',
 };
 
-function formatColor(hex) {
-  const label = COLOR_LABELS[hex] || hex;
-  return label + ' (' + hex + ')';
-}
-
-function colorPreviewUrl(hex) {
-  return 'https://singlecolorimage.com/get/' + hex.replace('#', '') + '/120x120';
-}
-
-function approvalCaption(username, characterColor) {
-  return (
-    '🎮 Novo cadastro — Insocialidade\\n\\n' +
-    '👤 Usuário: ' + username + '\\n' +
-    '🎨 Cor: ' + formatColor(characterColor) + '\\n\\n' +
-    'Aprove ou rejeite:'
-  );
+function colorLabel(hex) {
+  return COLOR_LABELS[hex] || hex;
 }
 
 async function sendApprovalRequest(username, characterColor) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
-    await telegramApi.call(this, 'sendPhoto', {
+    await telegramApi.call(this, 'sendMessage', {
       chat_id: TELEGRAM_CHAT_ID,
-      photo: colorPreviewUrl(characterColor),
-      caption: approvalCaption(username, characterColor),
+      text:
+        '🎮 Novo cadastro — Insocialidade\\n\\n' +
+        '👤 Usuário: ' + username + '\\n' +
+        '🎨 Cor: ' + colorLabel(characterColor) + '\\n\\n' +
+        'Aprove ou rejeite:',
       reply_markup: {
         inline_keyboard: [[
           { text: '✅ Aprovar', callback_data: 'approve:' + username },
@@ -157,7 +146,7 @@ async function moderateUser(username, modAction) {
     text:
       '🎮 Insocialidade — cadastro\\n\\n' +
       '👤 ' + username + '\\n' +
-      '🎨 ' + formatColor(user.character_color) + '\\n\\n' +
+      '🎨 ' + colorLabel(user.character_color) + '\\n\\n' +
       (modAction === 'approve'
         ? '✅ Aprovado — já pode entrar.'
         : '❌ Não aprovado.'),
@@ -305,22 +294,12 @@ try {
 } catch (err) {}
 
 try {
-  const hasPhoto = cq.message.photo && cq.message.photo.length > 0;
-  if (hasPhoto) {
-    await telegramApi.call(this, 'editMessageCaption', {
-      chat_id: cq.message.chat.id,
-      message_id: cq.message.message_id,
-      caption: result.text,
-      reply_markup: { inline_keyboard: [] },
-    });
-  } else {
-    await telegramApi.call(this, 'editMessageText', {
-      chat_id: cq.message.chat.id,
-      message_id: cq.message.message_id,
-      text: result.text,
-      reply_markup: { inline_keyboard: [] },
-    });
-  }
+  await telegramApi.call(this, 'editMessageText', {
+    chat_id: cq.message.chat.id,
+    message_id: cq.message.message_id,
+    text: result.text,
+    reply_markup: { inline_keyboard: [] },
+  });
 } catch (err) {}
 
 return [{ json: { ok: true } }];
