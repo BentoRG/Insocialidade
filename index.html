@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Insocialidade — entre ou cadastre-se para jogar." />
+    <title>Insocialidade — Entrar</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-card">
+      <header class="auth-header">
+        <div class="auth-header__logo" aria-hidden="true">🎮</div>
+        <h1>Insocialidade</h1>
+        <p>Entre na sua conta ou crie uma nova</p>
+      </header>
+
+      <div id="alert" class="alert" hidden role="alert"></div>
+
+      <!-- ── Login ─────────────────────────────────────────────────────────── -->
+      <section id="login-panel">
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label for="login-username">Usuário</label>
+            <input
+              type="text"
+              id="login-username"
+              name="username"
+              autocomplete="username"
+              required
+              minlength="3"
+              maxlength="20"
+              pattern="[a-zA-Z0-9_]+"
+              placeholder="seu_usuario"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="login-password">Senha</label>
+            <input
+              type="password"
+              id="login-password"
+              name="password"
+              autocomplete="current-password"
+              required
+              minlength="6"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button type="submit" class="btn btn--primary">Entrar</button>
+        </form>
+
+        <p class="form-footer">
+          Não tem conta?
+          <button type="button" id="show-register" class="btn btn--ghost">Cadastre-se</button>
+        </p>
+      </section>
+
+      <!-- ── Cadastro ──────────────────────────────────────────────────────── -->
+      <section id="register-panel" hidden>
+        <form id="register-form" novalidate>
+          <div class="form-group">
+            <label for="register-username">Usuário</label>
+            <input
+              type="text"
+              id="register-username"
+              name="username"
+              autocomplete="username"
+              required
+              minlength="3"
+              maxlength="20"
+              pattern="[a-zA-Z0-9_]+"
+              placeholder="escolha_um_nome"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="register-password">Senha</label>
+            <input
+              type="password"
+              id="register-password"
+              name="password"
+              autocomplete="new-password"
+              required
+              minlength="6"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="register-confirm">Confirmar senha</label>
+            <input
+              type="password"
+              id="register-confirm"
+              name="confirm_password"
+              autocomplete="new-password"
+              required
+              minlength="6"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Cor do personagem</label>
+            <div id="color-grid" class="color-grid" role="radiogroup" aria-label="Cor do personagem"></div>
+          </div>
+
+          <button type="submit" class="btn btn--primary">Criar conta</button>
+        </form>
+
+        <p class="form-footer">
+          Já tem conta?
+          <button type="button" id="show-login" class="btn btn--ghost">Entrar</button>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="js/index.js"></script>
+  </body>
+</html>

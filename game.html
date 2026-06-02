@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Insocialidade — jogo" />
+    <title>Insocialidade — Jogo</title>
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!--
+      Proteção de rota: game.js chama requireAuth() antes de renderizar.
+      Usuários não autenticados ou não aprovados são redirecionados para index.html.
+    -->
+  </head>
+  <body class="game-page">
+    <div id="game-root" hidden>
+      <header class="game-header">
+        <span class="game-header__brand">Insocialidade</span>
+
+        <div class="game-header__player">
+          <span id="player-avatar" class="player-avatar" aria-hidden="true"></span>
+          <span id="player-name" class="player-name"></span>
+          <button type="button" id="logout-btn" class="btn btn--sm">Sair</button>
+        </div>
+      </header>
+
+      <main class="game-main">
+        <div class="game-placeholder">
+          <h2>Bem-vindo ao jogo</h2>
+          <p>
+            Esta é a área principal do Insocialidade. O conteúdo do jogo será
+            implementado aqui — mecânicas, mapa, interações e progresso.
+          </p>
+          <div class="game-canvas" aria-label="Área do jogo (placeholder)">
+            Canvas do jogo — em breve
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="js/game.js"></script>
+  </body>
+</html>

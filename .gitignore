@@ -1,0 +1,6 @@
+# Dependencies
+node_modules/
+
+# Secrets locais (nunca commitar)
+.env
+.env.*
