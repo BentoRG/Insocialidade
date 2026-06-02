@@ -137,14 +137,19 @@ async function sendApprovalRequest(username, characterColor) {
 }
 
 async function moderateUser(username, modAction) {
-  const user = staticData.users[username];
+  const key = String(username || '').trim().toLowerCase();
+  const user = staticData.users[key];
   if (!user) return { ok: false, error: 'Usuário não encontrado.' };
+
   user.status = modAction === 'approve' ? 'active' : 'rejected';
+  user.approvedAt = new Date().toISOString();
+  staticData.users[key] = user;
+
   return {
     ok: true,
     text:
       '🎮 Insocialidade — cadastro\\n\\n' +
-      '👤 ' + username + '\\n' +
+      '👤 ' + key + '\\n' +
       '🎨 ' + colorLabel(user.character_color) + '\\n\\n' +
       (modAction === 'approve'
         ? '✅ Aprovado — já pode entrar.'
@@ -181,6 +186,7 @@ async function handleRegister() {
     if (existing.status === 'pending') {
       existing.character_color = characterColor;
       existing.passwordHash = hashPassword(password, existing.salt);
+      staticData.users[username] = existing;
       try {
         await sendApprovalRequest.call(this, username, characterColor);
       } catch (err) {
@@ -488,9 +494,11 @@ async function main() {
   let workflowId;
   if (found) {
     console.log('Atualizando workflow existente:', found.id);
+    const current = await api('GET', `/workflows/${found.id}`);
     const updated = await api('PUT', `/workflows/${found.id}`, {
       ...workflow,
       name: 'Insocialidade Auth',
+      staticData: current.staticData || {},
     });
     workflowId = updated.id;
   } else {
