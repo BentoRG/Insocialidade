@@ -2,8 +2,8 @@
  * Lógica da tela de autenticação (index.html).
  */
 
-import { CHARACTER_COLORS } from './config.js';
-import { register, login, getSessionProfile } from './auth.js';
+import { CONFIG, CHARACTER_COLORS } from './config.js';
+import { register, login, getSessionProfile, checkApprovalStatus } from './auth.js';
 
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
@@ -13,6 +13,8 @@ const showRegisterBtn = document.getElementById('show-register');
 const showLoginBtn = document.getElementById('show-login');
 const alertBox = document.getElementById('alert');
 const colorGrid = document.getElementById('color-grid');
+
+let statusPollTimer = null;
 
 function showAlert(message, type = 'info') {
   alertBox.textContent = message;
@@ -32,7 +34,6 @@ function setLoading(form, loading) {
 }
 
 function switchPanel(panel) {
-  hideAlert();
   const isLogin = panel === 'login';
   loginPanel.hidden = !isLogin;
   registerPanel.hidden = isLogin;
@@ -56,6 +57,58 @@ function renderColorPicker() {
   ).join('');
 }
 
+function stopStatusPolling() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
+  }
+}
+
+function rememberPendingUser(username) {
+  sessionStorage.setItem(CONFIG.PENDING_USER_KEY, username);
+}
+
+function forgetPendingUser() {
+  sessionStorage.removeItem(CONFIG.PENDING_USER_KEY);
+}
+
+async function pollApprovalStatus(username) {
+  try {
+    const { status, message } = await checkApprovalStatus(username);
+
+    if (status === 'active') {
+      stopStatusPolling();
+      forgetPendingUser();
+      loginForm.username.value = username;
+      switchPanel('login');
+      showAlert(message, 'success');
+      return;
+    }
+
+    if (status === 'rejected') {
+      stopStatusPolling();
+      forgetPendingUser();
+      showAlert(message, 'error');
+      return;
+    }
+
+    if (status === 'pending') {
+      showAlert(message, 'info');
+    }
+  } catch {
+    // mantém polling em caso de falha temporária de rede
+  }
+}
+
+function startStatusPolling(username) {
+  const trimmed = username.trim().toLowerCase();
+  rememberPendingUser(trimmed);
+  stopStatusPolling();
+  switchPanel('login');
+  void pollApprovalStatus(trimmed);
+  statusPollTimer = setInterval(() => pollApprovalStatus(trimmed), CONFIG.STATUS_POLL_MS);
+}
+
 async function init() {
   renderColorPicker();
 
@@ -65,13 +118,23 @@ async function init() {
     return;
   }
 
+  const pendingUser = sessionStorage.getItem(CONFIG.PENDING_USER_KEY);
+  if (pendingUser) {
+    loginForm.username.value = pendingUser;
+    switchPanel('login');
+    startStatusPolling(pendingUser);
+  }
+
   showRegisterBtn.addEventListener('click', (e) => {
     e.preventDefault();
+    hideAlert();
     switchPanel('register');
   });
 
   showLoginBtn.addEventListener('click', (e) => {
     e.preventDefault();
+    hideAlert();
+    stopStatusPolling();
     switchPanel('login');
   });
 
@@ -80,14 +143,23 @@ async function init() {
     hideAlert();
     setLoading(loginForm, true);
 
+    const username = loginForm.username.value;
+
     try {
       await login({
-        username: loginForm.username.value,
+        username,
         password: loginForm.password.value,
       });
+      stopStatusPolling();
+      forgetPendingUser();
       window.location.href = 'game.html';
     } catch (err) {
-      showAlert(err.message || 'Erro ao entrar.', 'error');
+      const msg = err.message || 'Erro ao entrar.';
+      showAlert(msg, 'error');
+
+      if (msg.includes('aguarda aprovação')) {
+        startStatusPolling(username);
+      }
     } finally {
       setLoading(loginForm, false);
     }
@@ -102,17 +174,19 @@ async function init() {
       'input[name="character_color"]:checked'
     )?.value;
 
+    const username = registerForm.username.value;
+
     try {
-      const result = await register({
-        username: registerForm.username.value,
+      await register({
+        username,
         password: registerForm.password.value,
         confirmPassword: registerForm.confirm_password.value,
         characterColor: selectedColor,
       });
-      showAlert(result.message, 'success');
+
       registerForm.reset();
       renderColorPicker();
-      setTimeout(() => switchPanel('login'), 4000);
+      startStatusPolling(username);
     } catch (err) {
       showAlert(err.message || 'Erro ao cadastrar.', 'error');
     } finally {

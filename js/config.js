@@ -25,6 +25,8 @@ export const CONFIG = {
   LOGIN_PAGE: 'index.html',
   GAME_PAGE: 'game.html',
   SESSION_KEY: 'insocialidade_session',
+  PENDING_USER_KEY: 'insocialidade_pending_user',
+  STATUS_POLL_MS: 5000,
 };
 
 /** Paleta oficial do personagem / identidade visual */

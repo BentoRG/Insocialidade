@@ -8,6 +8,7 @@ import {
   apiRegister,
   apiLogin,
   apiValidateSession,
+  apiCheckStatus,
   saveSession,
   clearSession,
   getStoredSession,
@@ -97,4 +98,29 @@ export async function requireAuth() {
   }
 
   return profile;
+}
+
+const STATUS_MESSAGES = {
+  pending: 'Aguardando aprovação do administrador…',
+  active: 'Sua conta foi aprovada! Faça login para entrar.',
+  rejected: 'Seu cadastro não foi aprovado.',
+};
+
+export function getStatusMessage(status) {
+  return STATUS_MESSAGES[status] || null;
+}
+
+/** Consulta se o cadastro foi aprovado, rejeitado ou ainda está pendente. */
+export async function checkApprovalStatus(username) {
+  const trimmed = username.trim().toLowerCase();
+  if (!isValidUsername(trimmed)) {
+    throw new Error('Usuário inválido.');
+  }
+
+  const data = await apiCheckStatus(trimmed);
+  return {
+    username: trimmed,
+    status: data.status,
+    message: getStatusMessage(data.status),
+  };
 }

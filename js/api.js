@@ -58,3 +58,7 @@ export async function apiLogin(payload) {
 export async function apiValidateSession(token) {
   return apiRequest('session', { token });
 }
+
+export async function apiCheckStatus(username) {
+  return apiRequest('status', { username });
+}

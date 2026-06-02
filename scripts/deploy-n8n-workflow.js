@@ -253,11 +253,26 @@ function handleSession() {
   return [{ json: { ok: true, profile: publicProfile(user) } }];
 }
 
+function handleStatus() {
+  const username = String(body.username || '').trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+    return [{ json: { ok: false, error: 'Usuário inválido.', httpStatus: 400 } }];
+  }
+
+  const user = staticData.users[username];
+  if (!user) {
+    return [{ json: { ok: true, status: 'none', username } }];
+  }
+
+  return [{ json: { ok: true, status: user.status, username: user.username } }];
+}
+
 return (async () => {
   switch (action) {
     case 'register': return await handleRegister();
     case 'login': return await handleLogin();
     case 'session': return handleSession();
+    case 'status': return handleStatus();
     default:
       return [{ json: { ok: false, error: 'Ação inválida.', httpStatus: 400 } }];
   }
