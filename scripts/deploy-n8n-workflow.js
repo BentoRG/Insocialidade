@@ -116,25 +116,24 @@ function colorLabel(hex) {
 }
 
 async function sendApprovalRequest(username, characterColor) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
-  try {
-    await telegramApi.call(this, 'sendMessage', {
-      chat_id: TELEGRAM_CHAT_ID,
-      text:
-        '🎮 Novo cadastro — Insocialidade\\n\\n' +
-        '👤 Usuário: ' + username + '\\n' +
-        '🎨 Cor: ' + colorLabel(characterColor) + '\\n\\n' +
-        'Aprove ou rejeite:',
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '✅ Aprovar', callback_data: 'approve:' + username },
-          { text: '❌ Não aprovar', callback_data: 'reject:' + username },
-        ]],
-      },
-    });
-  } catch (err) {
-    // cadastro continua mesmo se o Telegram falhar
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    throw new Error('Telegram não configurado no servidor.');
   }
+
+  await telegramApi.call(this, 'sendMessage', {
+    chat_id: TELEGRAM_CHAT_ID,
+    text:
+      '🎮 Novo cadastro — Insocialidade\\n\\n' +
+      '👤 Usuário: ' + username + '\\n' +
+      '🎨 Cor: ' + colorLabel(characterColor) + '\\n\\n' +
+      'Aprove ou rejeite:',
+    reply_markup: {
+      inline_keyboard: [[
+        { text: '✅ Aprovar', callback_data: 'approve:' + username },
+        { text: '❌ Não aprovar', callback_data: 'reject:' + username },
+      ]],
+    },
+  });
 }
 
 async function moderateUser(username, modAction) {
@@ -172,8 +171,25 @@ async function handleRegister() {
   if (password.length < 6) {
     return [{ json: { ok: false, error: 'Senha muito curta.', httpStatus: 400 } }];
   }
-  if (staticData.users[username]) {
-    return [{ json: { ok: false, error: 'Este usuário já está em uso.', httpStatus: 409 } }];
+
+  const existing = staticData.users[username];
+  if (existing) {
+    if (existing.status === 'active') {
+      return [{ json: { ok: false, error: 'Este usuário já está em uso.', httpStatus: 409 } }];
+    }
+
+    if (existing.status === 'pending') {
+      existing.character_color = characterColor;
+      existing.passwordHash = hashPassword(password, existing.salt);
+      try {
+        await sendApprovalRequest.call(this, username, characterColor);
+      } catch (err) {
+        return [{ json: { ok: false, error: 'Não foi possível enviar a solicitação no Telegram. Abra @InsocialidadeBot e envie /start, depois tente de novo.', httpStatus: 502 } }];
+      }
+      return [{ json: { ok: true, message: 'Cadastro pendente. Reenviamos a solicitação no Telegram.' } }];
+    }
+
+    // rejected — permite novo cadastro com os mesmos dados
   }
 
   const salt = randomId('s_');
@@ -188,7 +204,13 @@ async function handleRegister() {
     createdAt: new Date().toISOString(),
   };
 
-  await sendApprovalRequest.call(this, username, characterColor);
+  try {
+    await sendApprovalRequest.call(this, username, characterColor);
+  } catch (err) {
+    delete staticData.users[username];
+    return [{ json: { ok: false, error: 'Não foi possível enviar a solicitação no Telegram. Abra @InsocialidadeBot e envie /start, depois tente de novo.', httpStatus: 502 } }];
+  }
+
   return [{ json: { ok: true, message: 'Cadastro pendente de aprovação.' } }];
 }
 
