@@ -286,6 +286,7 @@ try {
     chat_id: cq.message.chat.id,
     message_id: cq.message.message_id,
     text: result.text,
+    reply_markup: { inline_keyboard: [] },
   });
 } catch (err) {}
 
