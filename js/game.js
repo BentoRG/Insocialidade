@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG } from './config.js';
+import { CONFIG, resolveAsset } from './config.js?v=canvas3';
 import { requireAuth, logout } from './auth.js';
 import {
   getStoredSession,
@@ -11,21 +11,46 @@ import {
   apiPresenceWorld,
   apiPresenceLeave,
 } from './api.js';
-import { loadMap } from './canvas/map.js';
-import { createLocalPlayer } from './canvas/player.js';
-import { createGameEngine } from './canvas/engine.js';
+import { loadMap } from './canvas/map.js?v=canvas3';
+import { createLocalPlayer } from './canvas/player.js?v=canvas3';
+import { createGameEngine } from './canvas/engine.js?v=canvas3';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 const gameRoot = document.getElementById('game-root');
 const gameCanvas = document.getElementById('game-canvas');
+const gameStatus = document.getElementById('game-status');
 
 let engine = null;
 let presencePollTimer = null;
 
 function getToken() {
   return getStoredSession()?.token || null;
+}
+
+function setStatus(message) {
+  if (gameStatus) gameStatus.textContent = message;
+}
+
+function paintCanvasMessage(title, detail = '') {
+  const rect = gameCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  gameCanvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  gameCanvas.height = Math.max(1, Math.floor(rect.height * dpr));
+
+  const ctx = gameCanvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  ctx.fillStyle = '#f8f3e6';
+  ctx.font = '14px ui-monospace, monospace';
+  ctx.fillText(title, 16, 32);
+  if (detail) {
+    ctx.fillStyle = '#e6d3a3';
+    ctx.font = '12px ui-monospace, monospace';
+    ctx.fillText(detail, 16, 52);
+  }
 }
 
 function startPresenceSync(onWorldUpdate) {
@@ -52,17 +77,6 @@ function stopPresenceSync() {
   }
 }
 
-async function leavePresence() {
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    await apiPresenceLeave(token);
-  } catch {
-    // best effort
-  }
-}
-
 async function init() {
   const profile = await requireAuth();
   if (!profile) return;
@@ -70,10 +84,12 @@ async function init() {
   gameRoot.hidden = false;
   playerName.textContent = profile.username;
   playerAvatar.style.backgroundColor = profile.character_color;
+  setStatus('Carregando mapa…');
+  paintCanvasMessage('Carregando…');
 
   logoutBtn.addEventListener('click', () => logout());
 
-  const map = await loadMap(CONFIG.MAP_URL);
+  const map = await loadMap(resolveAsset(CONFIG.MAP_URL));
   const localPlayer = createLocalPlayer({
     x: map.spawn.x,
     y: map.spawn.y,
@@ -93,6 +109,9 @@ async function init() {
         }
       : null,
   });
+
+  setStatus('WASD ou setas para mover');
+  gameCanvas.focus();
 
   startPresenceSync((players) => {
     engine?.setRemotePlayers(players);
@@ -116,13 +135,7 @@ async function init() {
 init().catch((err) => {
   console.error('[Insocialidade]', err);
   gameRoot.hidden = false;
-  gameCanvas.getContext('2d').fillStyle = '#111';
-  gameCanvas.getContext('2d').fillRect(0, 0, gameCanvas.width, gameCanvas.height);
-  const ctx = gameCanvas.getContext('2d');
-  ctx.fillStyle = '#f8f3e6';
-  ctx.font = '14px ui-monospace, monospace';
-  ctx.fillText('Erro ao carregar o jogo.', 16, 32);
-  ctx.fillStyle = '#e6d3a3';
-  ctx.font = '12px ui-monospace, monospace';
-  ctx.fillText(String(err.message || err), 16, 52);
+  const message = String(err.message || err);
+  setStatus(`Erro: ${message}`);
+  paintCanvasMessage('Erro ao carregar o jogo.', message);
 });

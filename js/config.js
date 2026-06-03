@@ -5,6 +5,9 @@
  * Telegram e armazenamento de usuários ficam no servidor — nada sensível no front-end.
  */
 
+/** Incrementar ao publicar — força o navegador a baixar JS/CSS novos. */
+export const ASSET_VERSION = 'canvas3';
+
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")
   API_URL: 'https://n8n.timgo.uk/webhook/insocialidade-auth',
@@ -31,6 +34,12 @@ export const CONFIG = {
   PRESENCE_STALE_MS: 15000,
   MAP_URL: 'assets/maps/starter.json',
 };
+
+/** Resolve caminhos de assets relativos à pasta do jogo (game.html). */
+export function resolveAsset(relativePath) {
+  const gameBase = new URL('game.html', window.location.href);
+  return new URL(relativePath.replace(/^\//, ''), gameBase).href;
+}
 
 /** Paleta oficial do personagem / identidade visual */
 export const CHARACTER_COLORS = [

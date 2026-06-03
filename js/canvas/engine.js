@@ -2,12 +2,12 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js';
+import { createInput } from './input.js?v=canvas3';
 import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js';
+} from './player.js?v=canvas3';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
@@ -35,9 +35,12 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   let running = true;
   let lastTime = performance.now();
   let lastPresenceSend = 0;
+  let resizeObserver = null;
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
     dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(rect.width * dpr);
     canvas.height = Math.floor(rect.height * dpr);
@@ -93,7 +96,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       drawPlayer(ctx, remote, camera.x, camera.y, scale, { showLabel: true });
     }
 
-    drawPlayer(ctx, localPlayer, camera.x, camera.y, scale);
+    drawPlayer(ctx, localPlayer, camera.x, camera.y, scale, { outline: true });
   }
 
   function tick(now) {
@@ -101,6 +104,12 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
     const dt = Math.min(0.05, (now - lastTime) / 1000);
     lastTime = now;
+
+    if (viewW <= 0 || viewH <= 0) {
+      resize();
+      requestAnimationFrame(tick);
+      return;
+    }
 
     updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
 
@@ -126,8 +135,10 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   resize();
   window.addEventListener('resize', resize);
 
-  const resizeObserver = new ResizeObserver(() => resize());
-  resizeObserver.observe(canvas);
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => resize());
+    resizeObserver.observe(canvas);
+  }
 
   requestAnimationFrame(tick);
 
@@ -137,7 +148,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       running = false;
       input.destroy();
       window.removeEventListener('resize', resize);
-      resizeObserver.disconnect();
+      resizeObserver?.disconnect();
     },
   };
 }

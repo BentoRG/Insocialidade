@@ -2,7 +2,7 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js';
+import { moveWithCollision } from './collision.js?v=canvas3';
 
 const LEG_OFFSETS = [
   [0, 0],
@@ -92,7 +92,14 @@ export function updateRemotePlayer(player, dt) {
   }
 }
 
-export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = false } = {}) {
+export function drawPlayer(
+  ctx,
+  player,
+  cameraX,
+  cameraY,
+  scale,
+  { showLabel = false, outline = false } = {}
+) {
   const screenX = Math.round((player.x - cameraX) * scale);
   const screenY = Math.round((player.y - cameraY) * scale);
   const px = scale;
@@ -104,6 +111,11 @@ export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = f
   const bodyH = 8 * px;
   const bodyX = screenX - bodyW / 2;
   const bodyY = screenY - 12 * px;
+
+  if (outline) {
+    ctx.fillStyle = '#f8f3e6';
+    ctx.fillRect(bodyX - px, bodyY - px, bodyW + 2 * px, bodyH + 2 * px);
+  }
 
   ctx.fillStyle = bodyColor;
   ctx.fillRect(bodyX, bodyY, bodyW, bodyH);

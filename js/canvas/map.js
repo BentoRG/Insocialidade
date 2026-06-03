@@ -34,7 +34,9 @@ function getSpawnPoint(mapData) {
 }
 
 export async function loadMap(mapUrl) {
-  const mapFetchUrl = new URL(mapUrl, window.location.href).href;
+  const mapFetchUrl = mapUrl.startsWith('http')
+    ? mapUrl
+    : new URL(mapUrl, window.location.href).href;
   const response = await fetch(mapFetchUrl);
   if (!response.ok) {
     throw new Error(`Falha ao carregar mapa: ${mapUrl}`);
