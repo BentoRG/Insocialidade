@@ -3,8 +3,8 @@
  */
 
 function resolveImagePath(mapUrl, imagePath) {
-  const base = mapUrl.slice(0, mapUrl.lastIndexOf('/') + 1);
-  return new URL(imagePath, base).href;
+  const mapBase = new URL(mapUrl, window.location.href);
+  return new URL(imagePath, mapBase).href;
 }
 
 function getLayer(mapData, name) {
@@ -34,14 +34,15 @@ function getSpawnPoint(mapData) {
 }
 
 export async function loadMap(mapUrl) {
-  const response = await fetch(mapUrl);
+  const mapFetchUrl = new URL(mapUrl, window.location.href).href;
+  const response = await fetch(mapFetchUrl);
   if (!response.ok) {
     throw new Error(`Falha ao carregar mapa: ${mapUrl}`);
   }
 
   const mapData = await response.json();
   const tilesetDef = mapData.tilesets[0];
-  const imageUrl = resolveImagePath(mapUrl, tilesetDef.image);
+  const imageUrl = resolveImagePath(mapFetchUrl, tilesetDef.image);
 
   const image = await new Promise((resolve, reject) => {
     const img = new Image();

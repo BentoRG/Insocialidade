@@ -125,6 +125,10 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
   resize();
   window.addEventListener('resize', resize);
+
+  const resizeObserver = new ResizeObserver(() => resize());
+  resizeObserver.observe(canvas);
+
   requestAnimationFrame(tick);
 
   return {
@@ -133,6 +137,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       running = false;
       input.destroy();
       window.removeEventListener('resize', resize);
+      resizeObserver.disconnect();
     },
   };
 }

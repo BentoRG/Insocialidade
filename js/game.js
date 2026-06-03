@@ -115,4 +115,14 @@ async function init() {
 
 init().catch((err) => {
   console.error('[Insocialidade]', err);
+  gameRoot.hidden = false;
+  gameCanvas.getContext('2d').fillStyle = '#111';
+  gameCanvas.getContext('2d').fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+  const ctx = gameCanvas.getContext('2d');
+  ctx.fillStyle = '#f8f3e6';
+  ctx.font = '14px ui-monospace, monospace';
+  ctx.fillText('Erro ao carregar o jogo.', 16, 32);
+  ctx.fillStyle = '#e6d3a3';
+  ctx.font = '12px ui-monospace, monospace';
+  ctx.fillText(String(err.message || err), 16, 52);
 });
