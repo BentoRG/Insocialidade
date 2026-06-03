@@ -1,14 +1,66 @@
 /**
- * Loader e render de mapas Tiled (JSON).
+ * Loader e render de mapas Tiled (JSON / TMJ).
  */
 
-function resolveImagePath(mapUrl, imagePath) {
-  const mapBase = new URL(mapUrl, window.location.href);
-  return new URL(imagePath, mapBase).href;
+function resolveAssetPath(baseUrl, relativePath) {
+  const base = new URL(baseUrl, window.location.href);
+  return new URL(relativePath, base).href;
 }
 
 function getLayer(mapData, name) {
   return mapData.layers.find((layer) => layer.type === 'tilelayer' && layer.name === name);
+}
+
+function parseLayerData(layer) {
+  if (Array.isArray(layer.data)) {
+    return layer.data;
+  }
+
+  if (layer.encoding === 'csv' && typeof layer.data === 'string') {
+    return layer.data.replace(/\n/g, ',').split(',').filter(Boolean).map(Number);
+  }
+
+  throw new Error(`Layer "${layer.name}" usa formato não suportado.`);
+}
+
+async function loadTilesetDef(mapUrl, tilesetRef) {
+  if (tilesetRef.image) {
+    return {
+      firstgid: tilesetRef.firstgid || 1,
+      tileWidth: tilesetRef.tilewidth,
+      tileHeight: tilesetRef.tileheight,
+      columns: tilesetRef.columns,
+      imagePath: tilesetRef.image,
+      imageBaseUrl: mapUrl,
+    };
+  }
+
+  if (!tilesetRef.source) {
+    throw new Error('Tileset inválido no mapa.');
+  }
+
+  const tsxUrl = resolveAssetPath(mapUrl, tilesetRef.source);
+  const response = await fetch(tsxUrl);
+  if (!response.ok) {
+    throw new Error(`Falha ao carregar tileset: ${tilesetRef.source}`);
+  }
+
+  const xml = new DOMParser().parseFromString(await response.text(), 'application/xml');
+  const tilesetEl = xml.querySelector('tileset');
+  const imageEl = xml.querySelector('image');
+
+  if (!tilesetEl || !imageEl) {
+    throw new Error(`Tileset XML inválido: ${tilesetRef.source}`);
+  }
+
+  return {
+    firstgid: tilesetRef.firstgid || 1,
+    tileWidth: Number(tilesetEl.getAttribute('tilewidth')),
+    tileHeight: Number(tilesetEl.getAttribute('tileheight')),
+    columns: Number(tilesetEl.getAttribute('columns')),
+    imagePath: imageEl.getAttribute('source'),
+    imageBaseUrl: tsxUrl,
+  };
 }
 
 function getSpawnPoint(mapData) {
@@ -43,8 +95,8 @@ export async function loadMap(mapUrl) {
   }
 
   const mapData = await response.json();
-  const tilesetDef = mapData.tilesets[0];
-  const imageUrl = resolveImagePath(mapFetchUrl, tilesetDef.image);
+  const tilesetDef = await loadTilesetDef(mapFetchUrl, mapData.tilesets[0]);
+  const imageUrl = resolveAssetPath(tilesetDef.imageBaseUrl, tilesetDef.imagePath);
 
   const image = await new Promise((resolve, reject) => {
     const img = new Image();
@@ -60,14 +112,15 @@ export async function loadMap(mapUrl) {
     throw new Error('Mapa precisa de uma layer "ground".');
   }
 
+  const groundData = parseLayerData(groundLayer);
+  const collisionData = collisionLayer ? parseLayerData(collisionLayer) : [];
+
   const tileWidth = mapData.tilewidth;
   const tileHeight = mapData.tileheight;
   const mapWidth = mapData.width;
   const mapHeight = mapData.height;
-  const firstGid = tilesetDef.firstgid || 1;
+  const firstGid = tilesetDef.firstgid;
   const columns = tilesetDef.columns;
-
-  const collisionData = collisionLayer?.data || [];
 
   const map = {
     tileWidth,
@@ -76,7 +129,7 @@ export async function loadMap(mapUrl) {
     height: mapHeight,
     pixelWidth: mapWidth * tileWidth,
     pixelHeight: mapHeight * tileHeight,
-    groundData: groundLayer.data,
+    groundData,
     collisionData,
     image,
     firstGid,
@@ -99,7 +152,7 @@ export async function loadMap(mapUrl) {
       for (let row = startRow; row < endRow; row++) {
         for (let col = startCol; col < endCol; col++) {
           const idx = row * mapWidth + col;
-          const gid = groundLayer.data[idx];
+          const gid = groundData[idx];
           if (!gid) continue;
 
           const tileIndex = gid - firstGid;

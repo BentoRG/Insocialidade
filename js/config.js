@@ -6,7 +6,7 @@
  */
 
 /** Incrementar ao publicar — força o navegador a baixar JS/CSS novos. */
-export const ASSET_VERSION = 'canvas3';
+export const ASSET_VERSION = 'canvas4';
 
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")
@@ -32,7 +32,7 @@ export const CONFIG = {
   STATUS_POLL_MS: 5000,
   PRESENCE_POLL_MS: 2000,
   PRESENCE_STALE_MS: 15000,
-  MAP_URL: 'assets/maps/starter.json',
+  MAP_URL: 'assets/maps/starter.tmj',
 };
 
 /** Resolve caminhos de assets relativos à pasta do jogo (game.html). */
