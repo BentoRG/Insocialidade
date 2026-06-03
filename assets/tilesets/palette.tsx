@@ -32,7 +32,7 @@
  </tile>
  <tile id="5">
   <properties>
-   <property name="tipo" value="estrada"/>
+   <property name="tipo" value="areia"/>
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
@@ -50,7 +50,7 @@
  </tile>
  <tile id="8">
   <properties>
-   <property name="tipo" value="novo"/>
+   <property name="tipo" value="estrada"/>
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
