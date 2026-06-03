@@ -53,6 +53,9 @@ const TELEGRAM_CHAT_ID = ${JSON.stringify(TELEGRAM_CHAT_ID)};
 
 const staticData = $getWorkflowStaticData('global');
 if (!staticData.users) staticData.users = {};
+if (!staticData.presence) staticData.presence = {};
+
+const PRESENCE_STALE_MS = 15000;
 
 async function telegramApi(method, body) {
   return this.helpers.httpRequest({
@@ -113,6 +116,75 @@ const COLOR_LABELS = {
 
 function colorLabel(hex) {
   return COLOR_LABELS[hex] || hex;
+}
+
+function findUserById(userId) {
+  return Object.values(staticData.users).find((u) => u.id === userId) || null;
+}
+
+function prunePresence(now) {
+  for (const [id, entry] of Object.entries(staticData.presence)) {
+    if (now - entry.lastSeen > PRESENCE_STALE_MS) {
+      delete staticData.presence[id];
+    }
+  }
+}
+
+function handlePresenceUpdate(userId) {
+  const user = findUserById(userId);
+  if (!user || user.status !== 'active') {
+    return [{ json: { ok: false, error: 'Sessão inválida.', httpStatus: 401 } }];
+  }
+
+  const x = Number(body.x);
+  const y = Number(body.y);
+  const facing = String(body.facing || 'down');
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return [{ json: { ok: false, error: 'Posição inválida.', httpStatus: 400 } }];
+  }
+
+  const now = Date.now();
+  staticData.presence[userId] = {
+    id: userId,
+    username: user.username,
+    character_color: user.character_color,
+    x: Math.round(x),
+    y: Math.round(y),
+    facing,
+    lastSeen: now,
+  };
+  prunePresence(now);
+
+  return [{ json: { ok: true } }];
+}
+
+function handlePresenceWorld(userId) {
+  const user = findUserById(userId);
+  if (!user || user.status !== 'active') {
+    return [{ json: { ok: false, error: 'Sessão inválida.', httpStatus: 401 } }];
+  }
+
+  const now = Date.now();
+  prunePresence(now);
+
+  const players = Object.values(staticData.presence)
+    .filter((p) => p.id !== userId && now - p.lastSeen <= PRESENCE_STALE_MS)
+    .map((p) => ({
+      id: p.id,
+      username: p.username,
+      character_color: p.character_color,
+      x: p.x,
+      y: p.y,
+      facing: p.facing,
+    }));
+
+  return [{ json: { ok: true, players } }];
+}
+
+function handlePresenceLeave(userId) {
+  if (userId) delete staticData.presence[userId];
+  return [{ json: { ok: true } }];
 }
 
 async function sendApprovalRequest(username, characterColor) {
@@ -267,7 +339,25 @@ function handleStatus() {
   return [{ json: { ok: true, status: user.status, username: user.username } }];
 }
 
+function handlePresenceAction(userId) {
+  switch (action) {
+    case 'presence_update': return handlePresenceUpdate(userId);
+    case 'presence_world': return handlePresenceWorld(userId);
+    case 'presence_leave': return handlePresenceLeave(userId);
+    default: return null;
+  }
+}
+
 return (async () => {
+  if (['presence_update', 'presence_world', 'presence_leave'].includes(action)) {
+    const userId = verifyToken(body.token);
+    if (!userId) {
+      return [{ json: { ok: false, error: 'Sessão inválida.', httpStatus: 401 } }];
+    }
+    const result = handlePresenceAction(userId);
+    if (result) return result;
+  }
+
   switch (action) {
     case 'register': return await handleRegister();
     case 'login': return await handleLogin();

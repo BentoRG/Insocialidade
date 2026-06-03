@@ -62,3 +62,15 @@ export async function apiValidateSession(token) {
 export async function apiCheckStatus(username) {
   return apiRequest('status', { username });
 }
+
+export async function apiPresenceUpdate(token, { x, y, facing }) {
+  return apiRequest('presence_update', { token, x, y, facing });
+}
+
+export async function apiPresenceWorld(token) {
+  return apiRequest('presence_world', { token });
+}
+
+export async function apiPresenceLeave(token) {
+  return apiRequest('presence_leave', { token });
+}

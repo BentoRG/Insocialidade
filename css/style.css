@@ -219,31 +219,21 @@ body {
 
 .game-main {
   flex: 1;
-  padding: 1.5rem 1rem;
-}
-
-.game-placeholder {
-  max-width: 640px;
-}
-
-.game-placeholder h2 {
-  font-size: 1rem;
-  font-weight: 400;
-  margin-bottom: 0.5rem;
-}
-
-.game-placeholder p {
-  color: var(--muted);
-  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
 }
 
 .game-canvas {
   width: 100%;
   max-width: 640px;
   aspect-ratio: 16 / 10;
-  border: 1px dashed var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
+  border: 1px solid var(--border);
+  background: #111;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: default;
+  display: block;
 }
