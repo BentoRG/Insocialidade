@@ -275,8 +275,10 @@ body {
 }
 
 .game-header__player {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
@@ -302,6 +304,7 @@ body {
   justify-content: center;
   padding: 1rem;
   overflow: hidden;
+  background: #f9f5e8;
 }
 
 .game-status {
