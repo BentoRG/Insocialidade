@@ -117,15 +117,16 @@ function findCentralWellTile(mapData, collisionData) {
 }
 
 function getSpawnBesideWell(map, wellTile) {
+  // Superior-esquerdo do poço (col-1, row-1); demais vizinhos só se estiver bloqueado.
   const offsets = [
+    [-1, -1],
+    [-1, 0],
+    [0, -1],
+    [1, -1],
+    [-1, 1],
     [0, 1],
     [1, 0],
-    [0, -1],
-    [-1, 0],
     [1, 1],
-    [-1, 1],
-    [1, -1],
-    [-1, -1],
   ];
 
   for (const [dc, dr] of offsets) {

@@ -11,7 +11,7 @@ import {
   apiPresenceWorld,
   apiPresenceLeave,
 } from './api.js';
-import { loadMap } from './canvas/map.js?v=canvas18';
+import { loadMap } from './canvas/map.js?v=canvas19';
 import { createLocalPlayer } from './canvas/player.js?v=canvas18';
 import { createGameEngine } from './canvas/engine.js?v=canvas18';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
