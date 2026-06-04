@@ -54,8 +54,12 @@ const TELEGRAM_CHAT_ID = ${JSON.stringify(TELEGRAM_CHAT_ID)};
 const staticData = $getWorkflowStaticData('global');
 if (!staticData.users) staticData.users = {};
 if (!staticData.presence) staticData.presence = {};
+if (!staticData.localChats) staticData.localChats = {};
 
 const PRESENCE_STALE_MS = 15000;
+const LOCAL_CHAT_MAX_TEXT = 500;
+const LOCAL_CHAT_ROOM_STALE_MS = 30 * 60 * 1000;
+const LOCAL_CHAT_MAX_MESSAGES = 200;
 
 function usernameKey(name) {
   return String(name || '').trim().toLocaleLowerCase('pt-BR');
@@ -201,14 +205,14 @@ function handlePresenceUpdate(userId) {
     id: userId,
     username: user.username,
     character_color: user.character_color,
-    x: Math.round(x),
-    y: Math.round(y),
+    x,
+    y,
     facing,
     lastSeen: now,
   };
 
-  user.last_x = Math.round(x);
-  user.last_y = Math.round(y);
+  user.last_x = x;
+  user.last_y = y;
   user.last_facing = facing;
   if (body.map) user.last_map = String(body.map);
 
@@ -240,6 +244,7 @@ function handlePresenceWorld(userId) {
       x: p.x,
       y: p.y,
       facing: p.facing,
+      lastSeen: p.lastSeen,
     }));
 
   const users = Object.values(staticData.users)
@@ -257,6 +262,160 @@ function handlePresenceWorld(userId) {
 function handlePresenceLeave(userId) {
   if (userId) delete staticData.presence[userId];
   return [{ json: { ok: true } }];
+}
+
+function chatRoomId(userId, peerId) {
+  return [userId, peerId].sort().join(':');
+}
+
+function pruneLocalChats(now) {
+  for (const [roomId, room] of Object.entries(staticData.localChats)) {
+    if (now - (room.updatedAt || 0) > LOCAL_CHAT_ROOM_STALE_MS) {
+      delete staticData.localChats[roomId];
+      continue;
+    }
+    if (room.messages?.length > LOCAL_CHAT_MAX_MESSAGES) {
+      room.messages = room.messages.slice(-LOCAL_CHAT_MAX_MESSAGES);
+    }
+  }
+}
+
+function tilesApart(ax, ay, bx, by, tileW, tileH) {
+  const ac = Math.floor(ax / tileW);
+  const ar = Math.floor(ay / tileH);
+  const bc = Math.floor(bx / tileW);
+  const br = Math.floor(by / tileH);
+  return Math.max(Math.abs(ac - bc), Math.abs(ar - br));
+}
+
+function arePlayersNearby(userId, peerId, tileW, tileH) {
+  const self = staticData.presence[userId];
+  const peer = staticData.presence[peerId];
+  if (!self || !peer) return false;
+  const now = Date.now();
+  if (now - self.lastSeen > PRESENCE_STALE_MS) return false;
+  if (now - peer.lastSeen > PRESENCE_STALE_MS) return false;
+  return tilesApart(self.x, self.y, peer.x, peer.y, tileW, tileH) <= 1;
+}
+
+function getOrCreateChatRoom(userId, peerId, now) {
+  const roomId = chatRoomId(userId, peerId);
+  if (!staticData.localChats[roomId]) {
+    staticData.localChats[roomId] = {
+      participants: [userId, peerId].sort(),
+      messages: [],
+      updatedAt: now,
+      nextMsgId: 1,
+    };
+  }
+  return staticData.localChats[roomId];
+}
+
+function handleLocalChatOpen(userId) {
+  const peerId = String(body.peerId || '').trim();
+  const tileW = Number(body.tileWidth) || 16;
+  const tileH = Number(body.tileHeight) || 16;
+
+  if (!peerId || peerId === userId) {
+    return [{ json: { ok: false, error: 'Jogador inválido.', httpStatus: 400 } }];
+  }
+
+  const peer = staticData.presence[peerId];
+  if (!peer) {
+    return [{ json: { ok: false, error: 'Jogador offline.', httpStatus: 404 } }];
+  }
+
+  if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
+    return [{ json: { ok: false, error: 'Aproxime-se a um tile do jogador.', httpStatus: 403 } }];
+  }
+
+  const now = Date.now();
+  pruneLocalChats(now);
+  getOrCreateChatRoom(userId, peerId, now);
+
+  return [{
+    json: {
+      ok: true,
+      peer: {
+        id: peer.id,
+        username: peer.username,
+        character_color: peer.character_color,
+      },
+    },
+  }];
+}
+
+function handleLocalChatSend(userId) {
+  const peerId = String(body.peerId || '').trim();
+  const text = String(body.text || '').trim();
+  const tileW = Number(body.tileWidth) || 16;
+  const tileH = Number(body.tileHeight) || 16;
+
+  if (!peerId || peerId === userId) {
+    return [{ json: { ok: false, error: 'Jogador inválido.', httpStatus: 400 } }];
+  }
+  if (!text || text.length > LOCAL_CHAT_MAX_TEXT) {
+    return [{ json: { ok: false, error: 'Mensagem inválida.', httpStatus: 400 } }];
+  }
+
+  if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
+    return [{ json: { ok: false, error: 'fora_de_alcance', httpStatus: 403 } }];
+  }
+
+  const now = Date.now();
+  pruneLocalChats(now);
+  const room = getOrCreateChatRoom(userId, peerId, now);
+  const msg = {
+    id: room.nextMsgId++,
+    from: userId,
+    text,
+    at: now,
+  };
+  room.messages.push(msg);
+  room.updatedAt = now;
+
+  return [{ json: { ok: true, message: msg } }];
+}
+
+function handleLocalChatPoll(userId) {
+  const peerId = String(body.peerId || '').trim();
+  const after = Number(body.after) || 0;
+  const tileW = Number(body.tileWidth) || 16;
+  const tileH = Number(body.tileHeight) || 16;
+
+  if (!peerId || peerId === userId) {
+    return [{ json: { ok: false, error: 'Jogador inválido.', httpStatus: 400 } }];
+  }
+
+  if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
+    return [{ json: { ok: false, error: 'fora_de_alcance', httpStatus: 403 } }];
+  }
+
+  const now = Date.now();
+  pruneLocalChats(now);
+  const roomId = chatRoomId(userId, peerId);
+  const room = staticData.localChats[roomId];
+  const messages = (room?.messages || []).filter((m) => m.id > after);
+
+  const peer = staticData.presence[peerId];
+  return [{
+    json: {
+      ok: true,
+      messages,
+      peer: peer
+        ? { id: peer.id, username: peer.username, character_color: peer.character_color }
+        : null,
+    },
+  }];
+}
+
+function handleLocalChatAction(userId) {
+  switch (action) {
+    case 'local_chat_open': return handleLocalChatOpen(userId);
+    case 'local_chat_send': return handleLocalChatSend(userId);
+    case 'local_chat_poll': return handleLocalChatPoll(userId);
+    default: return null;
+  }
 }
 
 async function clearMessageButtons(cq) {
@@ -449,13 +608,24 @@ function handlePresenceAction(userId) {
 }
 
 return (async () => {
-  if (['presence_update', 'presence_world', 'presence_leave'].includes(action)) {
+  const authedActions = [
+    'presence_update',
+    'presence_world',
+    'presence_leave',
+    'local_chat_open',
+    'local_chat_send',
+    'local_chat_poll',
+  ];
+
+  if (authedActions.includes(action)) {
     const userId = verifyToken(body.token);
     if (!userId) {
       return [{ json: { ok: false, error: 'Sessão inválida.', httpStatus: 401 } }];
     }
-    const result = handlePresenceAction(userId);
-    if (result) return result;
+    const presenceResult = handlePresenceAction(userId);
+    if (presenceResult) return presenceResult;
+    const chatResult = handleLocalChatAction(userId);
+    if (chatResult) return chatResult;
   }
 
   switch (action) {

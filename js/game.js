@@ -12,9 +12,10 @@ import {
   apiPresenceLeave,
 } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas19';
-import { createLocalPlayer } from './canvas/player.js?v=canvas18';
-import { createGameEngine } from './canvas/engine.js?v=canvas18';
+import { createLocalPlayer } from './canvas/player.js?v=canvas21';
+import { createGameEngine } from './canvas/engine.js?v=canvas22';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
+import { createLocalChat } from './local-chat.js?v=chat1';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -27,7 +28,10 @@ const gameStatus = document.getElementById('game-status');
 const usersList = document.getElementById('users-list');
 
 let engine = null;
+let localChat = null;
+let removeChatTick = null;
 let presencePollTimer = null;
+let presencePollStopped = false;
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -152,22 +156,31 @@ function startPresenceSync(onWorldUpdate) {
   const token = getToken();
   if (!token) return;
 
-  const poll = async () => {
+  presencePollStopped = false;
+
+  const pollLoop = async () => {
+    if (presencePollStopped) return;
+    const started = performance.now();
     try {
       const data = await apiPresenceWorld(token);
       onWorldUpdate(data.players || [], data.users || []);
     } catch {
       // ignora falhas temporárias de rede
     }
+    if (!presencePollStopped) {
+      const elapsed = performance.now() - started;
+      const delay = Math.max(0, CONFIG.PRESENCE_POLL_MS - elapsed);
+      presencePollTimer = setTimeout(pollLoop, delay);
+    }
   };
 
-  void poll();
-  presencePollTimer = setInterval(poll, CONFIG.PRESENCE_POLL_MS);
+  void pollLoop();
 }
 
 function stopPresenceSync() {
+  presencePollStopped = true;
   if (presencePollTimer) {
-    clearInterval(presencePollTimer);
+    clearTimeout(presencePollTimer);
     presencePollTimer = null;
   }
 }
@@ -230,18 +243,39 @@ async function init() {
       : null,
   });
 
+  localChat = createLocalChat({
+    nearbyEl: document.getElementById('local-chat-nearby'),
+    activeEl: document.getElementById('local-chat-active'),
+    peerNameEl: document.getElementById('local-chat-peer-name'),
+    messagesEl: document.getElementById('local-chat-messages'),
+    formEl: document.getElementById('local-chat-form'),
+    inputEl: document.getElementById('local-chat-input'),
+    closeBtn: document.getElementById('local-chat-close'),
+    getLocalPlayer: () => engine.getLocalPlayer(),
+    getRemotePlayers: () => engine.getRemotePlayers(),
+    getTileSize: () => engine.getTileSize(),
+    localUserId: profile.id,
+    getToken,
+  });
+
+  removeChatTick = engine.addTickListener(() => localChat?.update());
+
   await waitForLayout();
   engine.resize();
+  localChat.update();
   setStatus('WASD ou setas para mover');
   gameCanvas.focus();
 
   startPresenceSync((players, users) => {
     engine?.setRemotePlayers(players);
     renderUsersList(users);
+    localChat?.update();
   });
 
   window.addEventListener('beforeunload', () => {
     stopPresenceSync();
+    removeChatTick?.();
+    localChat?.destroy();
     engine?.destroy();
     if (token) {
       navigator.sendBeacon(

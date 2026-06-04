@@ -9,12 +9,12 @@ import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas18';
+} from './player.js?v=canvas21';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
 const FULLSCREEN_ZOOM = 5;
-const PRESENCE_SEND_MS = 100;
+const PRESENCE_SEND_MS = 50;
 
 function computeCamera(localPlayer, map, viewW, viewH) {
   let camX = localPlayer.x - viewW / 2;
@@ -30,6 +30,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   const ctx = canvas.getContext('2d');
   const input = createInput();
   const remotePlayers = new Map();
+  const tickListeners = new Set();
 
   let scale = BASE_ZOOM;
   let viewW = 0;
@@ -77,11 +78,10 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
           facing: data.facing,
         });
         remotePlayers.set(data.id, remote);
-      } else {
-        syncRemotePlayer(remote, data);
-        remote.color = data.character_color;
-        remote.username = data.username;
       }
+      syncRemotePlayer(remote, data);
+      remote.color = data.character_color;
+      remote.username = data.username;
     }
 
     for (const id of remotePlayers.keys()) {
@@ -122,6 +122,13 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       updateRemotePlayer(remote, dt);
     }
 
+    for (const listener of tickListeners) {
+      listener({
+        localPlayer,
+        remotePlayers: Array.from(remotePlayers.values()),
+      });
+    }
+
     const camera = computeCamera(localPlayer, map, viewW, viewH);
     render(camera);
 
@@ -154,8 +161,16 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   return {
     setRemotePlayers,
     resize,
+    getLocalPlayer: () => localPlayer,
+    getRemotePlayers: () => Array.from(remotePlayers.values()),
+    getTileSize: () => ({ tileWidth: map.tileWidth, tileHeight: map.tileHeight }),
+    addTickListener(fn) {
+      tickListeners.add(fn);
+      return () => tickListeners.delete(fn);
+    },
     destroy() {
       running = false;
+      tickListeners.clear();
       input.destroy();
       window.removeEventListener('resize', resize);
       document.removeEventListener('fullscreenchange', resize);

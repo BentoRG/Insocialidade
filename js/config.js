@@ -30,8 +30,9 @@ export const CONFIG = {
   SESSION_KEY: 'insocialidade_session',
   PENDING_USER_KEY: 'insocialidade_pending_user',
   STATUS_POLL_MS: 5000,
-  PRESENCE_POLL_MS: 120,
+  PRESENCE_POLL_MS: 50,
   PRESENCE_STALE_MS: 15000,
+  LOCAL_CHAT_POLL_MS: 350,
   MAP_URL: 'assets/maps/starter.tmj',
 };
 
