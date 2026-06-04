@@ -106,16 +106,33 @@ function publicProfile(user) {
   return { username: user.username, character_color: user.character_color, status: user.status };
 }
 
+const VALID_CHARACTER_COLORS = new Set([
+  '#27609e',
+  '#4a4a4a',
+  '#4ea6ec',
+  '#ffffff',
+  '#c2a278',
+  '#90c25e',
+  '#4b6629',
+]);
+
 const COLOR_LABELS = {
-  '#222233': 'Sombra',
-  '#474b6b': 'Ardósia',
-  '#b89b6d': 'Bronze',
-  '#e6d3a3': 'Areia',
-  '#f8f3e6': 'Creme',
+  '#27609e': 'Azul oceano',
+  '#4a4a4a': 'Cinza',
+  '#4ea6ec': 'Azul céu',
+  '#ffffff': 'Branco',
+  '#c2a278': 'Areia',
+  '#90c25e': 'Verde',
+  '#4b6629': 'Musgo',
 };
 
+function normalizeCharacterColor(hex) {
+  const value = String(hex || '').trim().toLowerCase();
+  return value.startsWith('#') ? value : '#' + value;
+}
+
 function colorLabel(hex) {
-  return COLOR_LABELS[hex] || hex;
+  return COLOR_LABELS[normalizeCharacterColor(hex)] || hex;
 }
 
 function findUserById(userId) {
@@ -240,13 +257,16 @@ const action = body.action;
 async function handleRegister() {
   const username = String(body.username || '').trim().toLowerCase();
   const password = String(body.password || '');
-  const characterColor = String(body.characterColor || '');
+  const characterColor = normalizeCharacterColor(body.characterColor);
 
   if (!/^[a-z0-9_]{3,20}$/.test(username)) {
     return [{ json: { ok: false, error: 'Usuário inválido.', httpStatus: 400 } }];
   }
   if (password.length < 6) {
     return [{ json: { ok: false, error: 'Senha muito curta.', httpStatus: 400 } }];
+  }
+  if (!VALID_CHARACTER_COLORS.has(characterColor)) {
+    return [{ json: { ok: false, error: 'Cor inválida. Escolha uma das cores do cadastro.', httpStatus: 400 } }];
   }
 
   const existing = staticData.users[username];

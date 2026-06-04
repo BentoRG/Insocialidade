@@ -214,10 +214,21 @@ body {
 
 /* color picker */
 
+.color-warning {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: center;
+  color: #4a4a4a;
+  background: #fff8e6;
+  border: 1px solid #c2a278;
+}
+
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
 }
 
 .color-option {
@@ -238,6 +249,10 @@ body {
   border: 1px solid var(--border);
 }
 
+.color-swatch--light {
+  border-color: #888;
+}
+
 .color-option input:checked + .color-swatch {
   outline: 2px solid var(--text);
   outline-offset: 1px;
@@ -249,7 +264,7 @@ body {
 
 @media (max-width: 400px) {
   .color-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

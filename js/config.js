@@ -46,11 +46,13 @@ export function resolveAsset(relativePath, { bust = false } = {}) {
   return new URL(path, gameBase).href;
 }
 
-/** Paleta oficial do personagem / identidade visual */
+/** Cores disponíveis no cadastro — escolha permanente, não pode alterar depois. */
 export const CHARACTER_COLORS = [
-  { id: 'shadow', hex: '#222233', label: 'Sombra' },
-  { id: 'slate', hex: '#474b6b', label: 'Ardósia' },
-  { id: 'bronze', hex: '#b89b6d', label: 'Bronze' },
-  { id: 'sand', hex: '#e6d3a3', label: 'Areia' },
-  { id: 'cream', hex: '#f8f3e6', label: 'Creme' },
+  { id: 'ocean', hex: '#27609e', label: 'Azul oceano' },
+  { id: 'gray', hex: '#4a4a4a', label: 'Cinza' },
+  { id: 'sky', hex: '#4ea6ec', label: 'Azul céu' },
+  { id: 'white', hex: '#ffffff', label: 'Branco' },
+  { id: 'sand', hex: '#c2a278', label: 'Areia' },
+  { id: 'lime', hex: '#90c25e', label: 'Verde' },
+  { id: 'moss', hex: '#4b6629', label: 'Musgo' },
 ];

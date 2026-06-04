@@ -41,7 +41,9 @@ function switchPanel(panel) {
 
 function renderColorPicker() {
   colorGrid.innerHTML = CHARACTER_COLORS.map(
-    (color, index) => `
+    (color, index) => {
+      const lightClass = color.hex.toLowerCase() === '#ffffff' ? ' color-swatch--light' : '';
+      return `
     <label class="color-option" title="${color.label}">
       <input
         type="radio"
@@ -50,10 +52,11 @@ function renderColorPicker() {
         ${index === 0 ? 'checked' : ''}
         required
       />
-      <span class="color-swatch" style="--swatch: ${color.hex}"></span>
+      <span class="color-swatch${lightClass}" style="--swatch: ${color.hex}"></span>
       <span class="color-label">${color.label}</span>
     </label>
-  `
+  `;
+    }
   ).join('');
 }
 
@@ -175,6 +178,17 @@ async function init() {
     const selectedColor = registerForm.querySelector(
       'input[name="character_color"]:checked'
     )?.value;
+
+    const colorLabel =
+      CHARACTER_COLORS.find((c) => c.hex === selectedColor)?.label || selectedColor;
+
+    if (
+      !confirm(
+        `A cor "${colorLabel}" é permanente. Depois do cadastro você não poderá mudá-la.\n\nDeseja continuar?`
+      )
+    ) {
+      return;
+    }
 
     const username = registerForm.username.value;
 

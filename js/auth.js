@@ -14,7 +14,12 @@ import {
   getStoredSession,
 } from './api.js';
 
-const VALID_COLORS = new Set(CHARACTER_COLORS.map((c) => c.hex));
+const VALID_COLORS = new Set(CHARACTER_COLORS.map((c) => c.hex.toLowerCase()));
+
+function normalizeCharacterColor(hex) {
+  const value = String(hex || '').trim().toLowerCase();
+  return value.startsWith('#') ? value : `#${value}`;
+}
 
 export function isValidUsername(username) {
   return /^[a-zA-Z0-9_]{3,20}$/.test(username.trim());
@@ -40,14 +45,15 @@ export async function register({ username, password, confirmPassword, characterC
   const passwordError = validatePasswords(password, confirmPassword);
   if (passwordError) throw new Error(passwordError);
 
-  if (!VALID_COLORS.has(characterColor)) {
-    throw new Error('Selecione uma cor válida para o personagem.');
+  const normalizedColor = normalizeCharacterColor(characterColor);
+  if (!VALID_COLORS.has(normalizedColor)) {
+    throw new Error('Selecione uma das cores disponíveis para o personagem.');
   }
 
   await apiRegister({
     username: trimmed,
     password,
-    characterColor,
+    characterColor: normalizedColor,
   });
 
   return {
