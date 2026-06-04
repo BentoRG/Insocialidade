@@ -145,6 +145,8 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(canvas);
+    const wrap = canvas.parentElement;
+    if (wrap) resizeObserver.observe(wrap);
   }
 
   requestAnimationFrame(tick);

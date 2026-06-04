@@ -353,6 +353,10 @@ body {
   min-height: 100vh;
 }
 
+#game-root[hidden] {
+  display: none !important;
+}
+
 .game-header {
   width: 100%;
   display: flex;
