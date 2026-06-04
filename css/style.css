@@ -105,6 +105,11 @@ body {
   text-align: center;
 }
 
+.auth-input::placeholder {
+  color: rgba(17, 17, 17, 0.38);
+  opacity: 1;
+}
+
 .auth-input--user {
   background: #a9ddd6;
 }
@@ -125,28 +130,32 @@ body {
 .password-toggle {
   position: absolute;
   top: 50%;
-  right: 0.35rem;
+  right: 0.3rem;
+  z-index: 2;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
-  border: none;
-  background: transparent;
-  color: #2a4a47;
+  border: 1px solid rgba(42, 74, 71, 0.25);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #1e3d3a;
   cursor: pointer;
 }
 
+.password-toggle:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
 .password-toggle__icon {
-  width: 1.15rem;
-  height: 1.15rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: currentColor;
+  display: block;
+  pointer-events: none;
 }
 
 .password-toggle__icon--hide {

@@ -56,6 +56,7 @@ function initPasswordToggles() {
       btn.classList.toggle('password-toggle--visible', !visible);
       btn.setAttribute('aria-pressed', String(!visible));
       btn.setAttribute('aria-label', visible ? 'Mostrar senha' : 'Ocultar senha');
+      btn.setAttribute('title', visible ? 'Mostrar senha' : 'Ocultar senha');
     });
   });
 }
