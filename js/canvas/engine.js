@@ -2,17 +2,19 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas16';
+import { createInput } from './input.js?v=canvas17';
 import {
   createRemotePlayer,
   syncRemotePlayer,
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas16';
+} from './player.js?v=canvas17';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
+const REF_VIEW_CSS_W = 640;
+const REF_VIEW_CSS_H = 400;
 const PRESENCE_SEND_MS = 100;
 
 function computeCamera(localPlayer, map, viewW, viewH) {
@@ -39,6 +41,13 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   let lastPresenceSend = 0;
   let resizeObserver = null;
 
+  function isFullscreen() {
+    const root = canvas.closest('#game-root');
+    const fs =
+      document.fullscreenElement || document.webkitFullscreenElement || null;
+    return Boolean(root && fs === root);
+  }
+
   function resize() {
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -47,7 +56,14 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     canvas.width = Math.floor(rect.width * dpr);
     canvas.height = Math.floor(rect.height * dpr);
 
-    scale = BASE_ZOOM;
+    if (isFullscreen()) {
+      const scaleW = (rect.width / REF_VIEW_CSS_W) * BASE_ZOOM;
+      const scaleH = (rect.height / REF_VIEW_CSS_H) * BASE_ZOOM;
+      scale = Math.max(scaleW, scaleH);
+    } else {
+      scale = BASE_ZOOM;
+    }
+
     viewW = rect.width / scale;
     viewH = rect.height / scale;
   }
@@ -130,6 +146,8 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
   resize();
   window.addEventListener('resize', resize);
+  document.addEventListener('fullscreenchange', resize);
+  document.addEventListener('webkitfullscreenchange', resize);
 
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => resize());
@@ -140,10 +158,13 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
   return {
     setRemotePlayers,
+    resize,
     destroy() {
       running = false;
       input.destroy();
       window.removeEventListener('resize', resize);
+      document.removeEventListener('fullscreenchange', resize);
+      document.removeEventListener('webkitfullscreenchange', resize);
       resizeObserver?.disconnect();
     },
   };

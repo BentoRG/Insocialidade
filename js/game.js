@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=canvas16';
+import { CONFIG, resolveAsset } from './config.js?v=canvas17';
 import { requireAuth, logout } from './auth.js';
 import {
   getStoredSession,
@@ -11,9 +11,9 @@ import {
   apiPresenceWorld,
   apiPresenceLeave,
 } from './api.js';
-import { loadMap } from './canvas/map.js?v=canvas16';
-import { createLocalPlayer } from './canvas/player.js?v=canvas16';
-import { createGameEngine } from './canvas/engine.js?v=canvas16';
+import { loadMap } from './canvas/map.js?v=canvas17';
+import { createLocalPlayer } from './canvas/player.js?v=canvas17';
+import { createGameEngine } from './canvas/engine.js?v=canvas17';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -183,8 +183,13 @@ async function init() {
 
   logoutBtn.addEventListener('click', () => logout());
   fullscreenBtn?.addEventListener('click', () => toggleFullscreen());
-  exitFullscreenBtn?.addEventListener('click', () => toggleFullscreen());
+  exitFullscreenBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void exitFullscreen();
+  });
   document.addEventListener('fullscreenchange', updateFullscreenButton);
+  document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
   gameCanvas.addEventListener('dblclick', () => toggleFullscreen());
   updateFullscreenButton();
 

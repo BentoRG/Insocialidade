@@ -2,7 +2,7 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas16';
+import { moveWithCollision } from './collision.js?v=canvas17';
 
 const BODY_PX = 6;
 const LEG_H_PX = 2;
