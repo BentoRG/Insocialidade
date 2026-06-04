@@ -2,15 +2,14 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas15';
+import { moveWithCollision } from './collision.js?v=canvas16';
 
 const BODY_PX = 6;
-const LEG_PX = 1;
 const LEG_H_PX = 2;
 const SPRITE_H_PX = BODY_PX + LEG_H_PX;
 
 const LEG_OFFSETS = [0, 1];
-const OUTLINE_PX = 0.5;
+const OUTLINE_PX = 1;
 
 export function createLocalPlayer({ x, y, color, username }) {
   return {
