@@ -9,12 +9,12 @@ import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas21';
+} from './player.js?v=canvas22';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
 const FULLSCREEN_ZOOM = 5;
-const PRESENCE_SEND_MS = 50;
+const PRESENCE_SEND_MS = 40;
 
 function computeCamera(localPlayer, map, viewW, viewH) {
   let camX = localPlayer.x - viewW / 2;
@@ -39,6 +39,9 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   let running = true;
   let lastTime = performance.now();
   let lastPresenceSend = 0;
+  let lastSentX = localPlayer.x;
+  let lastSentY = localPlayer.y;
+  let lastSentFacing = localPlayer.facing;
   let resizeObserver = null;
 
   function isFullscreen() {
@@ -132,13 +135,22 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     const camera = computeCamera(localPlayer, map, viewW, viewH);
     render(camera);
 
-    if (onMove && now - lastPresenceSend >= PRESENCE_SEND_MS) {
-      lastPresenceSend = now;
-      onMove({
-        x: localPlayer.x,
-        y: localPlayer.y,
-        facing: localPlayer.facing,
-      });
+    if (onMove) {
+      const moved =
+        Math.hypot(localPlayer.x - lastSentX, localPlayer.y - lastSentY) > 0.5;
+      const turned = localPlayer.facing !== lastSentFacing;
+      const due = now - lastPresenceSend >= PRESENCE_SEND_MS;
+      if (due || moved || turned) {
+        lastPresenceSend = now;
+        lastSentX = localPlayer.x;
+        lastSentY = localPlayer.y;
+        lastSentFacing = localPlayer.facing;
+        onMove({
+          x: localPlayer.x,
+          y: localPlayer.y,
+          facing: localPlayer.facing,
+        });
+      }
     }
 
     requestAnimationFrame(tick);

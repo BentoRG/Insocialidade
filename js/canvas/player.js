@@ -25,15 +25,13 @@ export function createLocalPlayer({ x, y, color, username }) {
   };
 }
 
-const INTERP_DELAY_MS = 50;
-const MAX_EXTRAPOLATE_SEC = 0.4;
+const INTERP_DELAY_MS = 120;
+const MAX_EXTRAPOLATE_MS = 1200;
+const EXTRAPOLATE_DECAY_MS = 250;
 const TELEPORT_THRESHOLD = 140;
 const MAX_MOVE_SPEED = 70;
-const HISTORY_LIMIT = 12;
-
-function serverSeenToPerf(remote, serverSeen) {
-  return remote.timeBase + serverSeen;
-}
+const HISTORY_LIMIT = 24;
+const SMOOTH_RATE = 22;
 
 function capVelocity(vx, vy) {
   const speed = Math.hypot(vx, vy);
@@ -48,32 +46,68 @@ function snapRemote(remote, x, y, t, facing, lastSeen = null) {
   remote.y = y;
   remote.vx = 0;
   remote.vy = 0;
+  remote.targetX = x;
+  remote.targetY = y;
   remote.lastSeen = lastSeen;
   if (facing) remote.facing = facing;
+}
+
+function updateVelocity(remote) {
+  const history = remote.history;
+  if (history.length < 2) {
+    remote.vx = 0;
+    remote.vy = 0;
+    return;
+  }
+
+  const latest = history[history.length - 1];
+  let prev = history[history.length - 2];
+  for (let i = history.length - 2; i >= 0; i--) {
+    const candidate = history[i];
+    if (latest.t - candidate.t >= 24) {
+      prev = candidate;
+      break;
+    }
+    prev = candidate;
+  }
+
+  const dt = (latest.t - prev.t) / 1000;
+  if (dt <= 0.008) {
+    remote.vx = 0;
+    remote.vy = 0;
+    return;
+  }
+
+  const vel = capVelocity((latest.x - prev.x) / dt, (latest.y - prev.y) / dt);
+  remote.vx = vel.vx;
+  remote.vy = vel.vy;
 }
 
 function pushSnapshot(remote, x, y, t, facing) {
   const history = remote.history;
   const last = history[history.length - 1];
-  if (last && last.t === t && last.x === x && last.y === y) {
+  if (last && last.x === x && last.y === y && t - last.t < 12) {
     if (facing) remote.facing = facing;
     return;
   }
 
   history.push({ x, y, t });
   while (history.length > HISTORY_LIMIT) history.shift();
-
-  if (history.length >= 2) {
-    const prev = history[history.length - 2];
-    const dt = (t - prev.t) / 1000;
-    if (dt > 0.008) {
-      const vel = capVelocity((x - prev.x) / dt, (y - prev.y) / dt);
-      remote.vx = vel.vx;
-      remote.vy = vel.vy;
-    }
-  }
-
+  updateVelocity(remote);
   if (facing) remote.facing = facing;
+}
+
+function extrapolatePosition(remote, latest, extraMs) {
+  const cappedMs = Math.min(MAX_EXTRAPOLATE_MS, extraMs);
+  const extraSec = cappedMs / 1000;
+  const decay =
+    extraMs <= EXTRAPOLATE_DECAY_MS
+      ? 1
+      : Math.pow(0.82, (extraMs - EXTRAPOLATE_DECAY_MS) / 80);
+  return {
+    x: latest.x + remote.vx * extraSec * decay,
+    y: latest.y + remote.vy * extraSec * decay,
+  };
 }
 
 function sampleHistory(remote, renderTime) {
@@ -86,11 +120,7 @@ function sampleHistory(remote, renderTime) {
 
   const latest = history[history.length - 1];
   if (renderTime >= latest.t) {
-    const extra = Math.min(MAX_EXTRAPOLATE_SEC, (renderTime - latest.t) / 1000);
-    return {
-      x: latest.x + remote.vx * extra,
-      y: latest.y + remote.vy * extra,
-    };
+    return extrapolatePosition(remote, latest, renderTime - latest.t);
   }
 
   for (let i = 1; i < history.length; i++) {
@@ -115,8 +145,9 @@ export function createRemotePlayer({ id, x, y, color, username, facing }) {
     id,
     x,
     y,
+    targetX: x,
+    targetY: y,
     history: [{ x, y, t: now }],
-    timeBase: performance.now() - Date.now(),
     lastSeen: null,
     vx: 0,
     vy: 0,
@@ -135,30 +166,29 @@ export function syncRemotePlayer(remote, data) {
   const y = Number(data.y);
   const seen = Number(data.lastSeen);
   const hasSeen = Number.isFinite(seen);
-  const t = hasSeen ? serverSeenToPerf(remote, seen) : performance.now();
   const facing = data.facing || remote.facing;
+  const receivedAt = performance.now();
 
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
-  if (hasSeen && remote.lastSeen != null && seen < remote.lastSeen) return;
+  if (hasSeen && remote.lastSeen != null) {
+    if (seen < remote.lastSeen) return;
+    if (seen === remote.lastSeen) {
+      const latest = remote.history[remote.history.length - 1];
+      if (latest && latest.x === x && latest.y === y) return;
+    }
+  }
 
-  const history = remote.history;
-  const latest = history[history.length - 1];
+  const latest = remote.history[remote.history.length - 1];
   const jump = latest ? Math.hypot(x - latest.x, y - latest.y) : 0;
-
   const seenMs = hasSeen ? seen : null;
 
-  if (jump > TELEPORT_THRESHOLD) {
-    snapRemote(remote, x, y, t, facing, seenMs);
+  if (jump > TELEPORT_THRESHOLD || !latest) {
+    snapRemote(remote, x, y, receivedAt, facing, seenMs);
     return;
   }
 
-  if (!latest) {
-    snapRemote(remote, x, y, t, facing, seenMs);
-    return;
-  }
-
-  pushSnapshot(remote, x, y, t, facing);
+  pushSnapshot(remote, x, y, receivedAt, facing);
   if (hasSeen) remote.lastSeen = seen;
 }
 
@@ -200,15 +230,19 @@ export function updateRemotePlayer(player, dt) {
   const sample = sampleHistory(player, performance.now() - INTERP_DELAY_MS);
   if (!sample) return player;
 
-  const mdx = sample.x - player.x;
-  const mdy = sample.y - player.y;
-  player.x = sample.x;
-  player.y = sample.y;
+  player.targetX = sample.x;
+  player.targetY = sample.y;
+
+  const smooth = 1 - Math.exp(-SMOOTH_RATE * dt);
+  const mdx = player.targetX - player.x;
+  const mdy = player.targetY - player.y;
+  player.x += mdx * smooth;
+  player.y += mdy * smooth;
 
   const vx = player.vx || 0;
   const vy = player.vy || 0;
   const speed = Math.hypot(vx, vy);
-  player.moving = speed > 8 || Math.hypot(mdx, mdy) > 0.04;
+  player.moving = speed > 6 || Math.hypot(mdx, mdy) > 0.02;
 
   if (player.moving) {
     const faceDx = speed > 10 ? vx : mdx;

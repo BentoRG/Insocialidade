@@ -12,8 +12,8 @@ import {
   apiPresenceLeave,
 } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas19';
-import { createLocalPlayer } from './canvas/player.js?v=canvas21';
-import { createGameEngine } from './canvas/engine.js?v=canvas22';
+import { createLocalPlayer } from './canvas/player.js?v=canvas22';
+import { createGameEngine } from './canvas/engine.js?v=canvas23';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat1';
 
@@ -158,23 +158,23 @@ function startPresenceSync(onWorldUpdate) {
 
   presencePollStopped = false;
 
-  const pollLoop = async () => {
-    if (presencePollStopped) return;
-    const started = performance.now();
+  const pollOnce = async () => {
     try {
       const data = await apiPresenceWorld(token);
+      if (presencePollStopped) return;
       onWorldUpdate(data.players || [], data.users || []);
     } catch {
       // ignora falhas temporárias de rede
     }
-    if (!presencePollStopped) {
-      const elapsed = performance.now() - started;
-      const delay = Math.max(0, CONFIG.PRESENCE_POLL_MS - elapsed);
-      presencePollTimer = setTimeout(pollLoop, delay);
-    }
   };
 
-  void pollLoop();
+  const schedulePoll = () => {
+    if (presencePollStopped) return;
+    void pollOnce();
+    presencePollTimer = setTimeout(schedulePoll, CONFIG.PRESENCE_POLL_MS);
+  };
+
+  schedulePoll();
 }
 
 function stopPresenceSync() {
