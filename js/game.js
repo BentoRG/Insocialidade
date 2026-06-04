@@ -11,9 +11,10 @@ import {
   apiPresenceWorld,
   apiPresenceLeave,
 } from './api.js';
-import { loadMap } from './canvas/map.js?v=canvas17';
-import { createLocalPlayer } from './canvas/player.js?v=canvas17';
-import { createGameEngine } from './canvas/engine.js?v=canvas17';
+import { loadMap } from './canvas/map.js?v=canvas18';
+import { createLocalPlayer } from './canvas/player.js?v=canvas18';
+import { createGameEngine } from './canvas/engine.js?v=canvas18';
+import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -203,12 +204,17 @@ async function init() {
   updateFullscreenButton();
 
   const map = await loadMap(resolveAsset(CONFIG.MAP_URL, { bust: true }));
+  const mapId = map.id || getCurrentMapId(CONFIG.MAP_URL);
+  const userKey = profile.id || profile.username;
+  const spawn = resolvePlayerSpawn(map, mapId, profile, userKey);
+
   const localPlayer = createLocalPlayer({
-    x: map.spawn.x,
-    y: map.spawn.y,
+    x: spawn.x,
+    y: spawn.y,
     color: profile.character_color,
     username: profile.username,
   });
+  localPlayer.facing = spawn.facing;
 
   const token = getToken();
 
@@ -218,7 +224,8 @@ async function init() {
     localPlayer,
     onMove: token
       ? ({ x, y, facing }) => {
-          apiPresenceUpdate(token, { x, y, facing }).catch(() => {});
+          saveLocalPosition(userKey, { map: mapId, x, y, facing });
+          apiPresenceUpdate(token, { x, y, facing, map: mapId }).catch(() => {});
         }
       : null,
   });

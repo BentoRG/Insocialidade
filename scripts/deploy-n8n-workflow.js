@@ -113,7 +113,21 @@ function verifyToken(token) {
 }
 
 function publicProfile(user) {
-  return { username: user.username, character_color: user.character_color, status: user.status };
+  const profile = {
+    id: user.id,
+    username: user.username,
+    character_color: user.character_color,
+    status: user.status,
+  };
+  if (Number.isFinite(user.last_x) && Number.isFinite(user.last_y)) {
+    profile.saved_position = {
+      x: user.last_x,
+      y: user.last_y,
+      facing: user.last_facing || 'down',
+      map: user.last_map || '',
+    };
+  }
+  return profile;
 }
 
 const VALID_CHARACTER_COLORS = new Set([
@@ -192,6 +206,12 @@ function handlePresenceUpdate(userId) {
     facing,
     lastSeen: now,
   };
+
+  user.last_x = Math.round(x);
+  user.last_y = Math.round(y);
+  user.last_facing = facing;
+  if (body.map) user.last_map = String(body.map);
+
   prunePresence(now);
 
   return [{ json: { ok: true } }];

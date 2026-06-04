@@ -63,8 +63,8 @@ export async function apiCheckStatus(username) {
   return apiRequest('status', { username });
 }
 
-export async function apiPresenceUpdate(token, { x, y, facing }) {
-  return apiRequest('presence_update', { token, x, y, facing });
+export async function apiPresenceUpdate(token, { x, y, facing, map }) {
+  return apiRequest('presence_update', { token, x, y, facing, map });
 }
 
 export async function apiPresenceWorld(token) {

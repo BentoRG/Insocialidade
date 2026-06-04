@@ -2,6 +2,10 @@
  * Loader e render de mapas Tiled (JSON / TMJ).
  */
 
+import { collidesAt } from './collision.js?v=canvas18';
+
+const POCO_TILE_GID = 8;
+
 function resolveAssetPath(baseUrl, relativePath) {
   const base = new URL(baseUrl, window.location.href);
   return new URL(relativePath, base).href;
@@ -79,6 +83,70 @@ async function loadTilesetDef(mapUrl, tilesetRef) {
     imagePath: imageEl.getAttribute('source'),
     imageBaseUrl: tsxUrl,
   };
+}
+
+export function getMapId(mapUrl) {
+  try {
+    return new URL(mapUrl, window.location.href).pathname;
+  } catch {
+    return String(mapUrl || '');
+  }
+}
+
+function findCentralWellTile(mapData, collisionData) {
+  const mapWidth = mapData.width;
+  const mapHeight = mapData.height;
+  const centerCol = mapWidth / 2;
+  const centerRow = mapHeight / 2;
+  let best = null;
+  let bestDist = Infinity;
+
+  for (let row = 0; row < mapHeight; row++) {
+    for (let col = 0; col < mapWidth; col++) {
+      const idx = row * mapWidth + col;
+      if (collisionData[idx] !== POCO_TILE_GID) continue;
+      const dist = (col - centerCol) ** 2 + (row - centerRow) ** 2;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { col, row };
+      }
+    }
+  }
+
+  return best;
+}
+
+function getSpawnBesideWell(map, wellTile) {
+  const offsets = [
+    [0, 1],
+    [1, 0],
+    [0, -1],
+    [-1, 0],
+    [1, 1],
+    [-1, 1],
+    [1, -1],
+    [-1, -1],
+  ];
+
+  for (const [dc, dr] of offsets) {
+    const col = wellTile.col + dc;
+    const row = wellTile.row + dr;
+    const x = col * map.tileWidth + map.tileWidth / 2;
+    const y = row * map.tileHeight + map.tileHeight / 2;
+    if (!collidesAt(map, x, y)) {
+      return { x, y };
+    }
+  }
+
+  return { x: map.spawn.x, y: map.spawn.y };
+}
+
+function getDefaultSpawn(map, mapData, collisionData) {
+  const well = findCentralWellTile(mapData, collisionData);
+  if (well) {
+    return getSpawnBesideWell(map, well);
+  }
+  return { x: map.spawn.x, y: map.spawn.y };
 }
 
 function getSpawnPoint(mapData) {
@@ -208,6 +276,9 @@ export async function loadMap(mapUrl) {
       }
     },
   };
+
+  map.id = getMapId(mapFetchUrl);
+  map.defaultSpawn = getDefaultSpawn(map, mapData, collisionData);
 
   return map;
 }
