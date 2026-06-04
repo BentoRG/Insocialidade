@@ -2,7 +2,7 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas13';
+import { moveWithCollision } from './collision.js?v=canvas14';
 
 const BODY_PX = 6;
 const LEG_PX = 1;
@@ -214,7 +214,6 @@ export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = f
   const px = scale;
 
   const bodyColor = player.color || '#222233';
-  const legColor = shadeColor(bodyColor, -20);
 
   const bodyW = BODY_PX * px;
   const bodyH = BODY_PX * px;
@@ -228,7 +227,7 @@ export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = f
   const legY = bodyY + bodyH;
   const legW = LEG_PX * px;
   const legH = LEG_H_PX * px;
-  ctx.fillStyle = legColor;
+  ctx.fillStyle = bodyColor;
   ctx.fillRect(bodyX + 1 * px + legShift, legY, legW, legH);
   ctx.fillRect(bodyX + 4 * px - legShift, legY, legW, legH);
 
@@ -242,15 +241,4 @@ export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = f
     ctx.strokeText(player.username, screenX, labelY);
     ctx.fillText(player.username, screenX, labelY);
   }
-}
-
-function shadeColor(hex, amount) {
-  const n = parseInt(hex.slice(1), 16);
-  let r = (n >> 16) + amount;
-  let g = ((n >> 8) & 0xff) + amount;
-  let b = (n & 0xff) + amount;
-  r = Math.max(0, Math.min(255, r));
-  g = Math.max(0, Math.min(255, g));
-  b = Math.max(0, Math.min(255, b));
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
