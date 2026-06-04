@@ -2,12 +2,12 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas3';
+import { createInput } from './input.js?v=canvas5';
 import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas3';
+} from './player.js?v=canvas5';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;

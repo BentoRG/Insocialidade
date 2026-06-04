@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=canvas3';
+import { CONFIG, resolveAsset } from './config.js?v=canvas5';
 import { requireAuth, logout } from './auth.js';
 import {
   getStoredSession,
@@ -11,9 +11,9 @@ import {
   apiPresenceWorld,
   apiPresenceLeave,
 } from './api.js';
-import { loadMap } from './canvas/map.js?v=canvas4';
-import { createLocalPlayer } from './canvas/player.js?v=canvas3';
-import { createGameEngine } from './canvas/engine.js?v=canvas3';
+import { loadMap } from './canvas/map.js?v=canvas5';
+import { createLocalPlayer } from './canvas/player.js?v=canvas5';
+import { createGameEngine } from './canvas/engine.js?v=canvas5';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -89,7 +89,7 @@ async function init() {
 
   logoutBtn.addEventListener('click', () => logout());
 
-  const map = await loadMap(resolveAsset(CONFIG.MAP_URL));
+  const map = await loadMap(resolveAsset(CONFIG.MAP_URL, { bust: true }));
   const localPlayer = createLocalPlayer({
     x: map.spawn.x,
     y: map.spawn.y,

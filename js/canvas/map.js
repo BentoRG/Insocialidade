@@ -7,6 +7,21 @@ function resolveAssetPath(baseUrl, relativePath) {
   return new URL(relativePath, base).href;
 }
 
+function getCacheVersion(url) {
+  try {
+    return new URL(url, window.location.href).searchParams.get('v');
+  } catch {
+    return null;
+  }
+}
+
+function withCacheBust(url, version) {
+  if (!version) return url;
+  const resolved = new URL(url, window.location.href);
+  resolved.searchParams.set('v', version);
+  return resolved.href;
+}
+
 function getLayer(mapData, name) {
   return mapData.layers.find((layer) => layer.type === 'tilelayer' && layer.name === name);
 }
@@ -39,7 +54,10 @@ async function loadTilesetDef(mapUrl, tilesetRef) {
     throw new Error('Tileset inválido no mapa.');
   }
 
-  const tsxUrl = resolveAssetPath(mapUrl, tilesetRef.source);
+  const tsxUrl = withCacheBust(
+    resolveAssetPath(mapUrl, tilesetRef.source),
+    getCacheVersion(mapUrl)
+  );
   const response = await fetch(tsxUrl);
   if (!response.ok) {
     throw new Error(`Falha ao carregar tileset: ${tilesetRef.source}`);
@@ -89,6 +107,7 @@ export async function loadMap(mapUrl) {
   const mapFetchUrl = mapUrl.startsWith('http')
     ? mapUrl
     : new URL(mapUrl, window.location.href).href;
+  const cacheVersion = getCacheVersion(mapFetchUrl);
   const response = await fetch(mapFetchUrl);
   if (!response.ok) {
     throw new Error(`Falha ao carregar mapa: ${mapUrl}`);
@@ -96,7 +115,10 @@ export async function loadMap(mapUrl) {
 
   const mapData = await response.json();
   const tilesetDef = await loadTilesetDef(mapFetchUrl, mapData.tilesets[0]);
-  const imageUrl = resolveAssetPath(tilesetDef.imageBaseUrl, tilesetDef.imagePath);
+  const imageUrl = withCacheBust(
+    resolveAssetPath(tilesetDef.imageBaseUrl, tilesetDef.imagePath),
+    cacheVersion
+  );
 
   const image = await new Promise((resolve, reject) => {
     const img = new Image();
