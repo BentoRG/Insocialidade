@@ -18,6 +18,7 @@ import { createGameEngine } from './canvas/engine.js?v=canvas16';
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
 const logoutBtn = document.getElementById('logout-btn');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 const gameRoot = document.getElementById('game-root');
 const gameCanvas = document.getElementById('game-canvas');
 const gameStatus = document.getElementById('game-status');
@@ -31,6 +32,30 @@ function getToken() {
 
 function setStatus(message) {
   if (gameStatus) gameStatus.textContent = message;
+}
+
+function isFullscreen() {
+  return document.fullscreenElement === gameRoot;
+}
+
+async function toggleFullscreen() {
+  if (!gameRoot) return;
+  try {
+    if (isFullscreen()) {
+      await document.exitFullscreen();
+    } else {
+      await gameRoot.requestFullscreen();
+    }
+  } catch {
+    setStatus('Não foi possível entrar em tela cheia.');
+  }
+}
+
+function updateFullscreenButton() {
+  if (!fullscreenBtn) return;
+  const active = isFullscreen();
+  fullscreenBtn.textContent = active ? 'Sair da tela cheia' : 'Tela cheia';
+  fullscreenBtn.setAttribute('aria-pressed', String(active));
 }
 
 function paintCanvasMessage(title, detail = '') {
@@ -88,6 +113,10 @@ async function init() {
   paintCanvasMessage('Carregando…');
 
   logoutBtn.addEventListener('click', () => logout());
+  fullscreenBtn?.addEventListener('click', () => toggleFullscreen());
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
+  gameCanvas.addEventListener('dblclick', () => toggleFullscreen());
+  updateFullscreenButton();
 
   const map = await loadMap(resolveAsset(CONFIG.MAP_URL, { bust: true }));
   const localPlayer = createLocalPlayer({
