@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Insocialidade — jogo" />
     <title>Insocialidade — Jogo</title>
-    <link rel="stylesheet" href="css/style.css?v=game4" />
+    <link rel="stylesheet" href="css/style.css?v=game5" />
 
     <!--
       Proteção de rota: game.js chama requireAuth() antes de renderizar.
@@ -27,17 +27,24 @@
         </div>
       </header>
 
-      <main class="game-main">
-        <canvas
-          id="game-canvas"
-          class="game-canvas"
-          tabindex="0"
-          aria-label="Area do jogo"
-        ></canvas>
-        <p id="game-status" class="game-status" aria-live="polite"></p>
-      </main>
+      <div class="game-body">
+        <aside class="game-users" aria-label="Lista de contas">
+          <h2 class="game-users__title">Jogadores</h2>
+          <ul id="users-list" class="game-users__list"></ul>
+        </aside>
+
+        <main class="game-main">
+          <canvas
+            id="game-canvas"
+            class="game-canvas"
+            tabindex="0"
+            aria-label="Area do jogo"
+          ></canvas>
+          <p id="game-status" class="game-status" aria-live="polite"></p>
+        </main>
+      </div>
     </div>
 
-    <script type="module" src="js/game.js?v=game1"></script>
+    <script type="module" src="js/game.js?v=game2"></script>
   </body>
 </html>

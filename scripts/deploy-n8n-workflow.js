@@ -195,6 +195,11 @@ function handlePresenceWorld(userId) {
   const now = Date.now();
   prunePresence(now);
 
+  const onlineIds = new Set();
+  for (const p of Object.values(staticData.presence)) {
+    if (now - p.lastSeen <= PRESENCE_STALE_MS) onlineIds.add(p.id);
+  }
+
   const players = Object.values(staticData.presence)
     .filter((p) => p.id !== userId && now - p.lastSeen <= PRESENCE_STALE_MS)
     .map((p) => ({
@@ -206,7 +211,16 @@ function handlePresenceWorld(userId) {
       facing: p.facing,
     }));
 
-  return [{ json: { ok: true, players } }];
+  const users = Object.values(staticData.users)
+    .filter((u) => u.status === 'active')
+    .map((u) => ({
+      username: u.username,
+      character_color: u.character_color,
+      online: onlineIds.has(u.id),
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'));
+
+  return [{ json: { ok: true, players, users } }];
 }
 
 function handlePresenceLeave(userId) {

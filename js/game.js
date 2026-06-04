@@ -22,6 +22,7 @@ const fullscreenBtn = document.getElementById('fullscreen-btn');
 const gameRoot = document.getElementById('game-root');
 const gameCanvas = document.getElementById('game-canvas');
 const gameStatus = document.getElementById('game-status');
+const usersList = document.getElementById('users-list');
 
 let engine = null;
 let presencePollTimer = null;
@@ -78,6 +79,45 @@ function paintCanvasMessage(title, detail = '') {
   }
 }
 
+function renderUsersList(users = []) {
+  if (!usersList) return;
+
+  usersList.replaceChildren();
+
+  if (!users.length) {
+    const empty = document.createElement('li');
+    empty.className = 'game-users__empty';
+    empty.textContent = 'Nenhuma conta ativa.';
+    usersList.appendChild(empty);
+    return;
+  }
+
+  for (const user of users) {
+    const item = document.createElement('li');
+    item.className = 'game-users__item';
+
+    const swatch = document.createElement('span');
+    swatch.className = 'game-users__swatch';
+    swatch.style.backgroundColor = user.character_color || '#4a4a4a';
+    swatch.setAttribute('aria-hidden', 'true');
+
+    const name = document.createElement('span');
+    name.className = 'game-users__name';
+    name.textContent = user.username;
+
+    item.append(swatch, name);
+
+    if (user.online) {
+      const online = document.createElement('span');
+      online.className = 'game-users__online';
+      online.textContent = '(online)';
+      item.appendChild(online);
+    }
+
+    usersList.appendChild(item);
+  }
+}
+
 function startPresenceSync(onWorldUpdate) {
   const token = getToken();
   if (!token) return;
@@ -85,7 +125,7 @@ function startPresenceSync(onWorldUpdate) {
   const poll = async () => {
     try {
       const data = await apiPresenceWorld(token);
-      onWorldUpdate(data.players || []);
+      onWorldUpdate(data.players || [], data.users || []);
     } catch {
       // ignora falhas temporárias de rede
     }
@@ -142,8 +182,9 @@ async function init() {
   setStatus('WASD ou setas para mover');
   gameCanvas.focus();
 
-  startPresenceSync((players) => {
+  startPresenceSync((players, users) => {
     engine?.setRemotePlayers(players);
+    renderUsersList(users);
   });
 
   window.addEventListener('beforeunload', () => {
