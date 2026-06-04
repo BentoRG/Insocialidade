@@ -158,6 +158,13 @@ body {
   pointer-events: none;
 }
 
+.password-toggle__slash {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+}
+
 .password-toggle__icon--show {
   display: none;
 }
