@@ -12,10 +12,11 @@ import {
   apiPresenceLeave,
 } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas19';
-import { createLocalPlayer } from './canvas/player.js?v=canvas22';
-import { createGameEngine } from './canvas/engine.js?v=canvas23';
+import { createLocalPlayer } from './canvas/player.js?v=canvas26';
+import { createGameEngine } from './canvas/engine.js?v=canvas27';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat1';
+import { createRealtimePresence } from './realtime.js?v=rt1';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -29,9 +30,14 @@ const usersList = document.getElementById('users-list');
 
 let engine = null;
 let localChat = null;
+let realtime = null;
 let removeChatTick = null;
 let presencePollTimer = null;
 let presencePollStopped = false;
+let lastN8nPresenceSend = 0;
+let lastN8nX = null;
+let lastN8nY = null;
+let lastN8nFacing = null;
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -152,32 +158,33 @@ function renderUsersList(users = []) {
   }
 }
 
-function startPresenceSync(onWorldUpdate) {
+function startUsersSync(onUsersUpdate) {
   const token = getToken();
   if (!token) return;
 
   presencePollStopped = false;
 
-  const pollOnce = async () => {
+  const pollLoop = async () => {
+    if (presencePollStopped) return;
+    const started = performance.now();
     try {
       const data = await apiPresenceWorld(token);
       if (presencePollStopped) return;
-      onWorldUpdate(data.players || [], data.users || []);
+      onUsersUpdate(data.users || []);
     } catch {
       // ignora falhas temporárias de rede
     }
+    if (!presencePollStopped) {
+      const elapsed = performance.now() - started;
+      const delay = Math.max(250, CONFIG.PRESENCE_POLL_MS - elapsed);
+      presencePollTimer = setTimeout(pollLoop, delay);
+    }
   };
 
-  const schedulePoll = () => {
-    if (presencePollStopped) return;
-    void pollOnce();
-    presencePollTimer = setTimeout(schedulePoll, CONFIG.PRESENCE_POLL_MS);
-  };
-
-  schedulePoll();
+  void pollLoop();
 }
 
-function stopPresenceSync() {
+function stopUsersSync() {
   presencePollStopped = true;
   if (presencePollTimer) {
     clearTimeout(presencePollTimer);
@@ -236,11 +243,41 @@ async function init() {
     map,
     localPlayer,
     onMove: token
-      ? ({ x, y, facing }) => {
-          saveLocalPosition(userKey, { map: mapId, x, y, facing });
-          apiPresenceUpdate(token, { x, y, facing, map: mapId }).catch(() => {});
+      ? (state) => {
+          saveLocalPosition(userKey, { map: mapId, x: state.x, y: state.y, facing: state.facing });
+          realtime?.sendMove(state);
+
+          const now = performance.now();
+          const due = now - lastN8nPresenceSend >= CONFIG.PRESENCE_HEARTBEAT_MS;
+          const moved =
+            lastN8nX == null ||
+            Math.abs(state.x - lastN8nX) > 1 ||
+            Math.abs(state.y - lastN8nY) > 1 ||
+            state.facing !== lastN8nFacing;
+          if (due || moved || !state.moving) {
+            lastN8nPresenceSend = now;
+            lastN8nX = state.x;
+            lastN8nY = state.y;
+            lastN8nFacing = state.facing;
+            apiPresenceUpdate(token, { ...state, map: mapId }).catch(() => {});
+          }
         }
       : null,
+  });
+
+  realtime = createRealtimePresence({
+    url: CONFIG.REALTIME_WS_URL,
+    token,
+    mapId,
+    profile,
+    spawn,
+    onPlayers: (players) => {
+      engine?.setRemotePlayers(players);
+      localChat?.update();
+    },
+    onStatus: (message) => {
+      if (message) setStatus(message);
+    },
   });
 
   localChat = createLocalChat({
@@ -266,14 +303,13 @@ async function init() {
   setStatus('WASD ou setas para mover');
   gameCanvas.focus();
 
-  startPresenceSync((players, users) => {
-    engine?.setRemotePlayers(players);
+  startUsersSync((users) => {
     renderUsersList(users);
-    localChat?.update();
   });
 
   window.addEventListener('beforeunload', () => {
-    stopPresenceSync();
+    stopUsersSync();
+    realtime?.destroy();
     removeChatTick?.();
     localChat?.destroy();
     engine?.destroy();

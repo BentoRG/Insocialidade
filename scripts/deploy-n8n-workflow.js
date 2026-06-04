@@ -186,6 +186,28 @@ function prunePresence(now) {
   }
 }
 
+const PRESENCE_HISTORY_LIMIT = 16;
+const PRESENCE_HISTORY_MIN_MS = 45;
+
+function pushPresenceSample(entry, x, y, facing, moving, now) {
+  if (!entry.history) entry.history = [];
+  const hist = entry.history;
+  const last = hist[hist.length - 1];
+  if (last && last.t === now) return;
+  if (
+    last &&
+    last.x === x &&
+    last.y === y &&
+    last.facing === facing &&
+    last.moving === moving &&
+    now - last.t < PRESENCE_HISTORY_MIN_MS
+  ) {
+    return;
+  }
+  hist.push({ x, y, facing, moving, t: now });
+  while (hist.length > PRESENCE_HISTORY_LIMIT) hist.shift();
+}
+
 function handlePresenceUpdate(userId) {
   const user = findUserById(userId);
   if (!user || user.status !== 'active') {
@@ -195,21 +217,24 @@ function handlePresenceUpdate(userId) {
   const x = Number(body.x);
   const y = Number(body.y);
   const facing = String(body.facing || 'down');
+  const moving = Boolean(body.moving);
 
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     return [{ json: { ok: false, error: 'Posição inválida.', httpStatus: 400 } }];
   }
 
   const now = Date.now();
-  staticData.presence[userId] = {
-    id: userId,
-    username: user.username,
-    character_color: user.character_color,
-    x,
-    y,
-    facing,
-    lastSeen: now,
-  };
+  const entry = staticData.presence[userId] || { history: [] };
+  entry.id = userId;
+  entry.username = user.username;
+  entry.character_color = user.character_color;
+  entry.x = x;
+  entry.y = y;
+  entry.facing = facing;
+  entry.moving = moving;
+  entry.lastSeen = now;
+  pushPresenceSample(entry, x, y, facing, moving, now);
+  staticData.presence[userId] = entry;
 
   user.last_x = x;
   user.last_y = y;
@@ -244,7 +269,11 @@ function handlePresenceWorld(userId) {
       x: p.x,
       y: p.y,
       facing: p.facing,
+      moving: Boolean(p.moving),
       lastSeen: p.lastSeen,
+      history: (p.history && p.history.length)
+        ? p.history.slice(-PRESENCE_HISTORY_LIMIT)
+        : [{ x: p.x, y: p.y, facing: p.facing, moving: Boolean(p.moving), t: p.lastSeen }],
     }));
 
   const users = Object.values(staticData.users)

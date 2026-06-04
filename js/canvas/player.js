@@ -25,171 +25,54 @@ export function createLocalPlayer({ x, y, color, username }) {
   };
 }
 
-const INTERP_DELAY_MS = 120;
-const MAX_EXTRAPOLATE_MS = 1200;
-const EXTRAPOLATE_DECAY_MS = 250;
-const TELEPORT_THRESHOLD = 140;
-const MAX_MOVE_SPEED = 70;
-const HISTORY_LIMIT = 24;
-const SMOOTH_RATE = 22;
-
-function capVelocity(vx, vy) {
-  const speed = Math.hypot(vx, vy);
-  if (speed <= MAX_MOVE_SPEED || speed < 0.001) return { vx, vy };
-  const scale = MAX_MOVE_SPEED / speed;
-  return { vx: vx * scale, vy: vy * scale };
-}
-
-function snapRemote(remote, x, y, t, facing, lastSeen = null) {
-  remote.history = [{ x, y, t }];
-  remote.x = x;
-  remote.y = y;
-  remote.vx = 0;
-  remote.vy = 0;
-  remote.targetX = x;
-  remote.targetY = y;
-  remote.lastSeen = lastSeen;
-  if (facing) remote.facing = facing;
-}
-
-function updateVelocity(remote) {
-  const history = remote.history;
-  if (history.length < 2) {
-    remote.vx = 0;
-    remote.vy = 0;
-    return;
-  }
-
-  const latest = history[history.length - 1];
-  let prev = history[history.length - 2];
-  for (let i = history.length - 2; i >= 0; i--) {
-    const candidate = history[i];
-    if (latest.t - candidate.t >= 24) {
-      prev = candidate;
-      break;
-    }
-    prev = candidate;
-  }
-
-  const dt = (latest.t - prev.t) / 1000;
-  if (dt <= 0.008) {
-    remote.vx = 0;
-    remote.vy = 0;
-    return;
-  }
-
-  const vel = capVelocity((latest.x - prev.x) / dt, (latest.y - prev.y) / dt);
-  remote.vx = vel.vx;
-  remote.vy = vel.vy;
-}
-
-function pushSnapshot(remote, x, y, t, facing) {
-  const history = remote.history;
-  const last = history[history.length - 1];
-  if (last && last.x === x && last.y === y && t - last.t < 12) {
-    if (facing) remote.facing = facing;
-    return;
-  }
-
-  history.push({ x, y, t });
-  while (history.length > HISTORY_LIMIT) history.shift();
-  updateVelocity(remote);
-  if (facing) remote.facing = facing;
-}
-
-function extrapolatePosition(remote, latest, extraMs) {
-  const cappedMs = Math.min(MAX_EXTRAPOLATE_MS, extraMs);
-  const extraSec = cappedMs / 1000;
-  const decay =
-    extraMs <= EXTRAPOLATE_DECAY_MS
-      ? 1
-      : Math.pow(0.82, (extraMs - EXTRAPOLATE_DECAY_MS) / 80);
-  return {
-    x: latest.x + remote.vx * extraSec * decay,
-    y: latest.y + remote.vy * extraSec * decay,
-  };
-}
-
-function sampleHistory(remote, renderTime) {
-  const history = remote.history;
-  if (!history.length) return null;
-
-  if (renderTime <= history[0].t) {
-    return { x: history[0].x, y: history[0].y };
-  }
-
-  const latest = history[history.length - 1];
-  if (renderTime >= latest.t) {
-    return extrapolatePosition(remote, latest, renderTime - latest.t);
-  }
-
-  for (let i = 1; i < history.length; i++) {
-    const b = history[i];
-    if (renderTime < b.t) {
-      const a = history[i - 1];
-      const span = b.t - a.t;
-      const alpha = span > 0 ? (renderTime - a.t) / span : 1;
-      return {
-        x: a.x + (b.x - a.x) * alpha,
-        y: a.y + (b.y - a.y) * alpha,
-      };
-    }
-  }
-
-  return { x: latest.x, y: latest.y };
-}
+const TELEPORT_THRESHOLD = 96;
+const REMOTE_LERP_RATE = 36;
 
 export function createRemotePlayer({ id, x, y, color, username, facing }) {
-  const now = performance.now();
   return {
     id,
     x,
     y,
     targetX: x,
     targetY: y,
-    history: [{ x, y, t: now }],
-    lastSeen: null,
-    vx: 0,
-    vy: 0,
     color,
     username,
     facing: facing || 'down',
+    targetFacing: facing || 'down',
     moving: false,
     animFrame: 0,
     animTimer: 0,
+    initialized: false,
   };
 }
 
-/** Registra novo snapshot de posição vindo do servidor (polling). */
+/** Atualiza alvo de um jogador remoto (WebSocket em tempo real). */
 export function syncRemotePlayer(remote, data) {
   const x = Number(data.x);
   const y = Number(data.y);
-  const seen = Number(data.lastSeen);
-  const hasSeen = Number.isFinite(seen);
-  const facing = data.facing || remote.facing;
-  const receivedAt = performance.now();
-
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
-  if (hasSeen && remote.lastSeen != null) {
-    if (seen < remote.lastSeen) return;
-    if (seen === remote.lastSeen) {
-      const latest = remote.history[remote.history.length - 1];
-      if (latest && latest.x === x && latest.y === y) return;
-    }
-  }
+  const facing = data.facing || remote.facing;
+  const moving = Boolean(data.moving);
 
-  const latest = remote.history[remote.history.length - 1];
-  const jump = latest ? Math.hypot(x - latest.x, y - latest.y) : 0;
-  const seenMs = hasSeen ? seen : null;
+  remote.targetX = x;
+  remote.targetY = y;
+  remote.targetFacing = facing;
+  remote.moving = moving;
 
-  if (jump > TELEPORT_THRESHOLD || !latest) {
-    snapRemote(remote, x, y, receivedAt, facing, seenMs);
+  if (!remote.initialized) {
+    remote.x = x;
+    remote.y = y;
+    remote.facing = facing;
+    remote.initialized = true;
     return;
   }
 
-  pushSnapshot(remote, x, y, receivedAt, facing);
-  if (hasSeen) remote.lastSeen = seen;
+  const jump = Math.hypot(x - remote.x, y - remote.y);
+  if (jump > TELEPORT_THRESHOLD) {
+    remote.x = x;
+    remote.y = y;
+  }
 }
 
 export function updateLocalPlayer(player, dt, map, input, speed) {
@@ -227,32 +110,22 @@ export function updateLocalPlayer(player, dt, map, input, speed) {
 }
 
 export function updateRemotePlayer(player, dt) {
-  const sample = sampleHistory(player, performance.now() - INTERP_DELAY_MS);
-  if (!sample) return player;
+  const dx = player.targetX - player.x;
+  const dy = player.targetY - player.y;
+  const dist = Math.hypot(dx, dy);
 
-  player.targetX = sample.x;
-  player.targetY = sample.y;
+  if (dist > TELEPORT_THRESHOLD) {
+    player.x = player.targetX;
+    player.y = player.targetY;
+  } else if (dist > 0.001) {
+    const t = 1 - Math.exp(-REMOTE_LERP_RATE * dt);
+    player.x += dx * t;
+    player.y += dy * t;
+  }
 
-  const smooth = 1 - Math.exp(-SMOOTH_RATE * dt);
-  const mdx = player.targetX - player.x;
-  const mdy = player.targetY - player.y;
-  player.x += mdx * smooth;
-  player.y += mdy * smooth;
-
-  const vx = player.vx || 0;
-  const vy = player.vy || 0;
-  const speed = Math.hypot(vx, vy);
-  player.moving = speed > 6 || Math.hypot(mdx, mdy) > 0.02;
+  player.facing = player.targetFacing;
 
   if (player.moving) {
-    const faceDx = speed > 10 ? vx : mdx;
-    const faceDy = speed > 10 ? vy : mdy;
-    if (Math.abs(faceDx) > Math.abs(faceDy)) {
-      player.facing = faceDx > 0 ? 'right' : 'left';
-    } else if (Math.abs(faceDy) > 0.01) {
-      player.facing = faceDy > 0 ? 'down' : 'up';
-    }
-
     player.animTimer += dt;
     if (player.animTimer >= 0.12) {
       player.animTimer = 0;
