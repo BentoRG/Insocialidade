@@ -123,6 +123,8 @@ async function init() {
     loginForm.username.value = pendingUser;
     switchPanel('login');
     startStatusPolling(pendingUser);
+  } else {
+    switchPanel('login');
   }
 
   showRegisterBtn.addEventListener('click', (e) => {

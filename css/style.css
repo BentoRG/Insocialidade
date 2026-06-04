@@ -163,9 +163,18 @@ body {
 #login-panel,
 #register-panel {
   width: 100%;
-  display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+#login-panel:not([hidden]),
+#register-panel:not([hidden]) {
+  display: flex;
+}
+
+#login-panel[hidden],
+#register-panel[hidden] {
+  display: none !important;
 }
 
 .form-footer {
