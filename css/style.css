@@ -492,25 +492,40 @@ body {
   display: block;
 }
 
+.game-fullscreen-exit {
+  display: none;
+}
+
 #game-root:fullscreen,
 #game-root:-webkit-full-screen {
-  background: #f9f5e8;
+  background: #111;
+}
+
+#game-root:fullscreen .game-fullscreen-exit,
+#game-root:-webkit-full-screen .game-fullscreen-exit {
+  display: block;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 10;
+  width: auto;
 }
 
 #game-root:fullscreen .game-header,
-#game-root:-webkit-full-screen .game-header {
-  padding: 0.5rem 1rem;
-}
-
-#game-root:fullscreen .auth-title,
-#game-root:-webkit-full-screen .auth-title {
-  font-size: 2rem;
+#game-root:-webkit-full-screen .game-header,
+#game-root:fullscreen .game-users,
+#game-root:-webkit-full-screen .game-users,
+#game-root:fullscreen .game-status,
+#game-root:-webkit-full-screen .game-status {
+  display: none !important;
 }
 
 #game-root:fullscreen .game-body,
 #game-root:-webkit-full-screen .game-body {
   flex: 1;
   min-height: 0;
+  padding: 0;
+  gap: 0;
 }
 
 #game-root:fullscreen .game-main,
@@ -519,12 +534,8 @@ body {
   min-height: 0;
   width: 100%;
   max-width: none;
-  padding: 0.5rem;
-}
-
-#game-root:fullscreen .game-status,
-#game-root:-webkit-full-screen .game-status {
-  max-width: none;
+  padding: 0;
+  background: #111;
 }
 
 #game-root:fullscreen .game-canvas,
@@ -532,7 +543,8 @@ body {
   flex: 1;
   width: 100%;
   max-width: none;
-  height: auto;
+  height: 100%;
   min-height: 0;
   aspect-ratio: unset;
+  border: none;
 }

@@ -19,6 +19,7 @@ const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
 const gameRoot = document.getElementById('game-root');
 const gameCanvas = document.getElementById('game-canvas');
 const gameStatus = document.getElementById('game-status');
