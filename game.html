@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Insocialidade — jogo" />
     <title>Insocialidade — Jogo</title>
-    <link rel="stylesheet" href="css/style.css?v=layout3" />
+    <link rel="stylesheet" href="css/style.css?v=layout4" />
 
     <!--
       Proteção de rota: game.js chama requireAuth() antes de renderizar.
@@ -31,64 +31,58 @@
         </aside>
 
         <main class="game-main">
-          <div class="game-main__row">
-            <div class="game-canvas-wrap">
-              <canvas
-                id="game-canvas"
-                class="game-canvas"
-                tabindex="0"
-                aria-label="Area do jogo"
-              ></canvas>
-              <button
-                type="button"
-                id="fullscreen-btn"
-                class="btn btn--sm game-fullscreen-enter"
-                aria-pressed="false"
-              >
-                Tela cheia
-              </button>
-            </div>
-
-            <aside class="game-local-chat" aria-label="Chat local">
-              <h2 class="game-local-chat__title">Chat Local</h2>
-              <p class="game-local-chat__subtitle">
-                Quando você chegar perto de outro jogador, você terá a opção de abrir um
-                chat com esse jogador
-              </p>
-              <div id="local-chat-nearby" class="game-local-chat__nearby"></div>
-              <div id="local-chat-active" class="game-local-chat__active" hidden>
-                <div class="game-local-chat__header">
-                  <span id="local-chat-peer-name" class="game-local-chat__peer"></span>
-                  <button
-                    type="button"
-                    id="local-chat-close"
-                    class="btn btn--sm"
-                  >
-                    Fechar
-                  </button>
-                </div>
-                <div
-                  id="local-chat-messages"
-                  class="game-local-chat__messages"
-                  role="log"
-                  aria-live="polite"
-                ></div>
-                <form id="local-chat-form" class="game-local-chat__form">
-                  <input
-                    id="local-chat-input"
-                    class="game-local-chat__input"
-                    type="text"
-                    maxlength="500"
-                    placeholder="Mensagem…"
-                    autocomplete="off"
-                  />
-                  <button type="submit" class="btn btn--sm">Enviar</button>
-                </form>
-              </div>
-            </aside>
+          <div class="game-canvas-wrap">
+            <canvas
+              id="game-canvas"
+              class="game-canvas"
+              tabindex="0"
+              aria-label="Area do jogo"
+            ></canvas>
+            <button
+              type="button"
+              id="fullscreen-btn"
+              class="btn btn--sm game-fullscreen-enter"
+              aria-pressed="false"
+            >
+              Tela cheia
+            </button>
           </div>
           <p id="game-status" class="game-status" aria-live="polite"></p>
         </main>
+
+        <aside class="game-local-chat" aria-label="Chat local">
+          <h2 class="game-local-chat__title">Chat Local</h2>
+          <p class="game-local-chat__subtitle">
+            Quando você chegar perto de outro jogador, você terá a opção de abrir um
+            chat com esse jogador
+          </p>
+          <div id="local-chat-nearby" class="game-local-chat__nearby"></div>
+          <div id="local-chat-active" class="game-local-chat__active" hidden>
+            <div class="game-local-chat__header">
+              <span id="local-chat-peer-name" class="game-local-chat__peer"></span>
+              <button type="button" id="local-chat-close" class="btn btn--sm">
+                Fechar
+              </button>
+            </div>
+            <div
+              id="local-chat-messages"
+              class="game-local-chat__messages"
+              role="log"
+              aria-live="polite"
+            ></div>
+            <form id="local-chat-form" class="game-local-chat__form">
+              <input
+                id="local-chat-input"
+                class="game-local-chat__input"
+                type="text"
+                maxlength="500"
+                placeholder="Mensagem…"
+                autocomplete="off"
+              />
+              <button type="submit" class="btn btn--sm">Enviar</button>
+            </form>
+          </div>
+        </aside>
       </div>
 
       <button
