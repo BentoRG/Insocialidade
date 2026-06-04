@@ -149,6 +149,17 @@ function findUserById(userId) {
   return Object.values(staticData.users).find((u) => u.id === userId) || null;
 }
 
+function findUserStorageKey(token) {
+  const t = String(token || '').trim();
+  if (!t) return null;
+  if (staticData.users[t]) return t;
+  const keyed = usernameKey(t);
+  if (staticData.users[keyed]) return keyed;
+  const byId = findUserById(t);
+  if (!byId) return null;
+  return Object.keys(staticData.users).find((k) => staticData.users[k].id === byId.id) || null;
+}
+
 function prunePresence(now) {
   for (const [id, entry] of Object.entries(staticData.presence)) {
     if (now - entry.lastSeen > PRESENCE_STALE_MS) {
@@ -234,7 +245,11 @@ async function sendApprovalRequest(key, characterColor) {
   }
 
   const user = staticData.users[key];
-  const display = user?.username || key;
+  if (!user?.id) {
+    throw new Error('Usuário pendente sem ID interno.');
+  }
+  const display = user.username || key;
+  const token = user.id;
 
   await telegramApi.call(this, 'sendMessage', {
     chat_id: TELEGRAM_CHAT_ID,
@@ -245,16 +260,16 @@ async function sendApprovalRequest(key, characterColor) {
       'Aprove ou rejeite:',
     reply_markup: {
       inline_keyboard: [[
-        { text: '✅ Aprovar', callback_data: 'approve:' + key },
-        { text: '❌ Não aprovar', callback_data: 'reject:' + key },
+        { text: '✅ Aprovar', callback_data: 'approve:' + token },
+        { text: '❌ Não aprovar', callback_data: 'reject:' + token },
       ]],
     },
   });
 }
 
-async function moderateUser(username, modAction) {
-  const key = usernameKey(username);
-  const user = staticData.users[key];
+async function moderateUser(token, modAction) {
+  const key = findUserStorageKey(token);
+  const user = key ? staticData.users[key] : null;
   if (!user) return { ok: false, error: 'Usuário não encontrado.' };
 
   user.status = modAction === 'approve' ? 'active' : 'rejected';
@@ -426,7 +441,8 @@ return (async () => {
 const TELEGRAM_CODE = `
 ${SHARED_HEADER}
 
-const update = $input.first().json.body || {};
+const input = $input.first().json;
+const update = input.body || input;
 const cq = update.callback_query;
 
 if (!cq) {
@@ -447,10 +463,11 @@ if (String(cq.from?.id) !== adminId) {
 
 const raw = String(cq.data || '');
 const sep = raw.indexOf(':');
-const modAction = raw.slice(0, sep);
-const username = raw.slice(sep + 1).trim();
+const modAction = sep >= 0 ? raw.slice(0, sep) : '';
+const token = sep >= 0 ? raw.slice(sep + 1).trim() : '';
+const storageKey = findUserStorageKey(token);
 
-if (!['approve', 'reject'].includes(modAction) || !username || !staticData.users[usernameKey(username)]) {
+if (!['approve', 'reject'].includes(modAction)) {
   try {
     await telegramApi.call(this, 'answerCallbackQuery', {
       callback_query_id: cq.id,
@@ -461,7 +478,18 @@ if (!['approve', 'reject'].includes(modAction) || !username || !staticData.users
   return [{ json: { ok: true } }];
 }
 
-const result = await moderateUser(username, modAction);
+if (!storageKey) {
+  try {
+    await telegramApi.call(this, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: 'Cadastro não encontrado. Peça um novo cadastro no site (botões antigos não funcionam).',
+      show_alert: true,
+    });
+  } catch (err) {}
+  return [{ json: { ok: true } }];
+}
+
+const result = await moderateUser(token, modAction);
 if (!result.ok) {
   try {
     await telegramApi.call(this, 'answerCallbackQuery', {
