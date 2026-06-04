@@ -13,8 +13,7 @@ import {
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
-const REF_VIEW_CSS_W = 640;
-const REF_VIEW_CSS_H = 400;
+const FULLSCREEN_ZOOM = 5;
 const PRESENCE_SEND_MS = 100;
 
 function computeCamera(localPlayer, map, viewW, viewH) {
@@ -56,13 +55,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     canvas.width = Math.floor(rect.width * dpr);
     canvas.height = Math.floor(rect.height * dpr);
 
-    if (isFullscreen()) {
-      const scaleW = (rect.width / REF_VIEW_CSS_W) * BASE_ZOOM;
-      const scaleH = (rect.height / REF_VIEW_CSS_H) * BASE_ZOOM;
-      scale = Math.max(scaleW, scaleH);
-    } else {
-      scale = BASE_ZOOM;
-    }
+    scale = isFullscreen() ? FULLSCREEN_ZOOM : BASE_ZOOM;
 
     viewW = rect.width / scale;
     viewH = rect.height / scale;
