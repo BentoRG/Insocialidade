@@ -5,25 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Insocialidade — entre ou cadastre-se para jogar." />
     <title>Insocialidade — Entrar</title>
-    <link rel="stylesheet" href="css/style.css?v=9656248" />
+    <link rel="stylesheet" href="css/style.css?v=auth2" />
   </head>
   <body class="auth-page">
     <main class="auth-card">
       <header class="auth-header">
-        <h1>Insocialidade</h1>
-        <p>login / cadastro</p>
+        <h1 class="auth-title">Insocialidade</h1>
       </header>
 
       <div id="alert" class="alert" hidden role="alert"></div>
 
       <!-- ── Login ─────────────────────────────────────────────────────────── -->
       <section id="login-panel">
-        <form id="login-form" novalidate>
+        <form id="login-form" class="auth-form" novalidate>
           <div class="form-group">
-            <label for="login-username">Usuário</label>
+            <label class="sr-only" for="login-username">Usuário</label>
             <input
               type="text"
               id="login-username"
+              class="auth-input auth-input--user"
               name="username"
               autocomplete="username"
               required
@@ -35,10 +35,11 @@
           </div>
 
           <div class="form-group">
-            <label for="login-password">Senha</label>
+            <label class="sr-only" for="login-password">Senha</label>
             <input
               type="password"
               id="login-password"
+              class="auth-input auth-input--password"
               name="password"
               autocomplete="current-password"
               required
@@ -47,7 +48,7 @@
             />
           </div>
 
-          <button type="submit" class="btn btn--primary">Entrar</button>
+          <button type="submit" class="btn btn--enter">Entrar</button>
         </form>
 
         <p class="form-footer">
@@ -58,12 +59,13 @@
 
       <!-- ── Cadastro ──────────────────────────────────────────────────────── -->
       <section id="register-panel" hidden>
-        <form id="register-form" novalidate>
+        <form id="register-form" class="auth-form" novalidate>
           <div class="form-group">
-            <label for="register-username">Usuário</label>
+            <label class="sr-only" for="register-username">Usuário</label>
             <input
               type="text"
               id="register-username"
+              class="auth-input auth-input--user"
               name="username"
               autocomplete="username"
               required
@@ -75,10 +77,11 @@
           </div>
 
           <div class="form-group">
-            <label for="register-password">Senha</label>
+            <label class="sr-only" for="register-password">Senha</label>
             <input
               type="password"
               id="register-password"
+              class="auth-input auth-input--password"
               name="password"
               autocomplete="new-password"
               required
@@ -88,10 +91,11 @@
           </div>
 
           <div class="form-group">
-            <label for="register-confirm">Confirmar senha</label>
+            <label class="sr-only" for="register-confirm">Confirmar senha</label>
             <input
               type="password"
               id="register-confirm"
+              class="auth-input auth-input--password"
               name="confirm_password"
               autocomplete="new-password"
               required
@@ -100,12 +104,12 @@
             />
           </div>
 
-          <div class="form-group">
+          <div class="form-group form-group--colors">
             <label>Cor do personagem</label>
             <div id="color-grid" class="color-grid" role="radiogroup" aria-label="Cor do personagem"></div>
           </div>
 
-          <button type="submit" class="btn btn--primary">Criar conta</button>
+          <button type="submit" class="btn btn--enter">Criar conta</button>
         </form>
 
         <p class="form-footer">

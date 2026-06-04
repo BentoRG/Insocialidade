@@ -37,55 +37,73 @@ body {
 
 /* auth */
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .auth-page {
   min-height: 100vh;
-  padding: 2rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 360px;
-  margin: 0 auto;
+  max-width: 280px;
+  text-align: center;
 }
 
 .auth-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
-.auth-header h1 {
-  font-size: 2.75rem;
+.auth-title {
+  font-size: 60px;
   font-weight: 400;
-  line-height: 1.1;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
-.auth-header p {
-  color: var(--muted);
-  margin-top: 0.25rem;
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
 }
 
-/* forms */
-
-.form-group {
-  margin-bottom: 0.75rem;
+.auth-form .form-group {
+  margin-bottom: 0;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.form-group input[type='text'],
-.form-group input[type='password'] {
+.auth-input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.55rem 0.65rem;
   font: inherit;
-  color: inherit;
-  background: var(--bg);
+  color: var(--text);
   border: 1px solid var(--border);
+  text-align: center;
 }
 
-.form-group input:focus {
-  outline: 1px solid var(--focus);
+.auth-input--user {
+  background: #a9ddd6;
+}
+
+.auth-input--password {
+  background: #76b8b1;
+}
+
+.auth-input:focus {
+  outline: 2px solid var(--focus);
   outline-offset: 0;
 }
 
@@ -103,20 +121,45 @@ body {
   cursor: not-allowed;
 }
 
-.btn--primary {
+.btn--enter {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 2px;
+  padding: 0.55rem 0.65rem;
+  background: #90ee90;
+  border: 1px solid #6bc96b;
+}
+
+.btn--enter:hover:not(:disabled) {
+  background: #7fe57f;
 }
 
 .btn--ghost {
   border: none;
   padding: 0;
   text-decoration: underline;
+  background: transparent;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 .form-footer {
-  margin-top: 1rem;
+  margin-top: 0.85rem;
   color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.auth-form .form-group--colors {
+  margin-top: 0.5rem;
+}
+
+.auth-form .form-group--colors > label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* alerts */
