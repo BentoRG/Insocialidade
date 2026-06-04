@@ -2,7 +2,7 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas14';
+import { moveWithCollision } from './collision.js?v=canvas15';
 
 const BODY_PX = 6;
 const LEG_PX = 1;
@@ -10,6 +10,7 @@ const LEG_H_PX = 2;
 const SPRITE_H_PX = BODY_PX + LEG_H_PX;
 
 const LEG_OFFSETS = [0, 1];
+const OUTLINE_PX = 0.5;
 
 export function createLocalPlayer({ x, y, color, username }) {
   return {
@@ -208,28 +209,70 @@ export function updateRemotePlayer(player, dt) {
   return player;
 }
 
+function buildSpriteMask(legShift) {
+  const mask = Array.from({ length: SPRITE_H_PX }, () => Array(BODY_PX).fill(false));
+  for (let y = 0; y < BODY_PX; y++) {
+    for (let x = 0; x < BODY_PX; x++) mask[y][x] = true;
+  }
+  for (let dy = 0; dy < LEG_H_PX; dy++) {
+    mask[BODY_PX + dy][1 + legShift] = true;
+    mask[BODY_PX + dy][4 - legShift] = true;
+  }
+  return mask;
+}
+
+function maskFilled(mask, x, y) {
+  return y >= 0 && y < SPRITE_H_PX && x >= 0 && x < BODY_PX && mask[y][x];
+}
+
+function drawSpriteOutline(ctx, originX, originY, px, mask) {
+  const t = OUTLINE_PX;
+  ctx.fillStyle = '#000';
+  for (let y = 0; y < SPRITE_H_PX; y++) {
+    for (let x = 0; x < BODY_PX; x++) {
+      if (!mask[y][x]) continue;
+      const rx = originX + x * px;
+      const ry = originY + y * px;
+      if (!maskFilled(mask, x, y - 1)) {
+        ctx.fillRect(rx - t, ry - t, px + 2 * t, t);
+      }
+      if (!maskFilled(mask, x, y + 1)) {
+        ctx.fillRect(rx - t, ry + px, px + 2 * t, t);
+      }
+      if (!maskFilled(mask, x - 1, y)) {
+        ctx.fillRect(rx - t, ry - t, t, px + 2 * t);
+      }
+      if (!maskFilled(mask, x + 1, y)) {
+        ctx.fillRect(rx + px, ry - t, t, px + 2 * t);
+      }
+    }
+  }
+}
+
+function drawSpriteFill(ctx, originX, originY, px, mask, color) {
+  ctx.fillStyle = color;
+  for (let y = 0; y < SPRITE_H_PX; y++) {
+    for (let x = 0; x < BODY_PX; x++) {
+      if (!mask[y][x]) continue;
+      ctx.fillRect(originX + x * px, originY + y * px, px, px);
+    }
+  }
+}
+
 export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = false } = {}) {
   const screenX = Math.round((player.x - cameraX) * scale);
   const screenY = Math.round((player.y - cameraY) * scale);
   const px = scale;
 
   const bodyColor = player.color || '#222233';
-
   const bodyW = BODY_PX * px;
-  const bodyH = BODY_PX * px;
   const bodyX = screenX - bodyW / 2;
   const bodyY = screenY - SPRITE_H_PX * px;
 
-  ctx.fillStyle = bodyColor;
-  ctx.fillRect(bodyX, bodyY, bodyW, bodyH);
-
-  const legShift = player.moving ? LEG_OFFSETS[player.animFrame] * px : 0;
-  const legY = bodyY + bodyH;
-  const legW = LEG_PX * px;
-  const legH = LEG_H_PX * px;
-  ctx.fillStyle = bodyColor;
-  ctx.fillRect(bodyX + 1 * px + legShift, legY, legW, legH);
-  ctx.fillRect(bodyX + 4 * px - legShift, legY, legW, legH);
+  const legShift = player.moving ? LEG_OFFSETS[player.animFrame] : 0;
+  const mask = buildSpriteMask(legShift);
+  drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
+  drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
 
   if (showLabel && player.username) {
     ctx.font = `${Math.max(8, 6 * px)}px ui-monospace, monospace`;
