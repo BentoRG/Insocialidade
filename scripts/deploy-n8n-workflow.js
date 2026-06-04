@@ -642,75 +642,80 @@ return (async () => {
 const TELEGRAM_CODE = `
 ${SHARED_HEADER}
 
-const input = $input.first().json;
-const update = input.body || input;
-const cq = update.callback_query;
-
-if (!cq) {
-  return [{ json: { ok: true } }];
-}
-
-const adminId = String(TELEGRAM_CHAT_ID);
-if (String(cq.from?.id) !== adminId) {
+async function answerCallback(cq, text = '', showAlert = false) {
+  if (!cq?.id) return;
   try {
     await telegramApi.call(this, 'answerCallbackQuery', {
       callback_query_id: cq.id,
-      text: 'Você não tem permissão para isso.',
-      show_alert: true,
+      text,
+      show_alert: showAlert,
     });
   } catch (err) {}
-  return [{ json: { ok: true } }];
+}
+
+function parseTelegramUpdate(rawInput) {
+  let update = rawInput?.body ?? rawInput;
+  if (typeof update === 'string') {
+    try {
+      update = JSON.parse(update);
+    } catch {
+      update = {};
+    }
+  }
+  return update && typeof update === 'object' ? update : {};
+}
+
+const input = $input.first().json;
+const update = parseTelegramUpdate(input);
+const cq = update.callback_query;
+
+if (!cq) {
+  return [];
+}
+
+const adminId = String(TELEGRAM_CHAT_ID);
+const fromId = String(cq.from?.id ?? '');
+
+if (fromId !== adminId) {
+  await answerCallback.call(this, cq, 'Você não tem permissão para isso.', true);
+  return [];
 }
 
 const raw = String(cq.data || '');
 const sep = raw.indexOf(':');
 const modAction = sep >= 0 ? raw.slice(0, sep) : '';
 const token = sep >= 0 ? raw.slice(sep + 1).trim() : '';
-const storageKey = findUserStorageKey(token);
 
 if (!['approve', 'reject'].includes(modAction)) {
-  try {
-    await telegramApi.call(this, 'answerCallbackQuery', {
-      callback_query_id: cq.id,
-      text: 'Ação inválida.',
-      show_alert: true,
-    });
-  } catch (err) {}
+  await answerCallback.call(this, cq, 'Ação inválida.', true);
   await clearMessageButtons.call(this, cq);
-  return [{ json: { ok: true } }];
+  return [];
 }
 
+const storageKey = findUserStorageKey(token);
 if (!storageKey) {
-  try {
-    await telegramApi.call(this, 'answerCallbackQuery', {
-      callback_query_id: cq.id,
-      text: 'Cadastro não encontrado. Peça um novo cadastro no site (botões antigos não funcionam).',
-      show_alert: true,
-    });
-  } catch (err) {}
+  await answerCallback.call(
+    this,
+    cq,
+    'Cadastro não encontrado. Peça um novo cadastro no site.',
+    true
+  );
   await clearMessageButtons.call(this, cq);
-  return [{ json: { ok: true } }];
+  return [];
 }
+
+await answerCallback.call(
+  this,
+  cq,
+  modAction === 'approve' ? 'Usuário aprovado!' : 'Usuário rejeitado.'
+);
 
 const result = await moderateUser(token, modAction);
 if (!result.ok) {
-  try {
-    await telegramApi.call(this, 'answerCallbackQuery', {
-      callback_query_id: cq.id,
-      text: result.error,
-      show_alert: true,
-    });
-  } catch (err) {}
+  await answerCallback.call(this, cq, result.error, true);
   await clearMessageButtons.call(this, cq);
-  return [{ json: { ok: true } }];
+  return [];
 }
-
-try {
-  await telegramApi.call(this, 'answerCallbackQuery', {
-    callback_query_id: cq.id,
-    text: modAction === 'approve' ? 'Usuário aprovado!' : 'Usuário rejeitado.',
-  });
-} catch (err) {}
 
 try {
   await telegramApi.call(this, 'editMessageText', {
@@ -723,7 +728,7 @@ try {
   await clearMessageButtons.call(this, cq);
 }
 
-return [{ json: { ok: true } }];
+return [];
 `.trim();
 
 const workflow = {
@@ -747,7 +752,7 @@ const workflow = {
       parameters: {
         httpMethod: 'POST',
         path: 'insocialidade-telegram',
-        responseMode: 'responseNode',
+        responseMode: 'onReceived',
         options: {},
       },
       id: 'webhook-telegram',
@@ -785,24 +790,11 @@ const workflow = {
       typeVersion: 1.1,
       position: [540, 0],
     },
-    {
-      parameters: {
-        respondWith: 'json',
-        responseBody: '={"ok":true}',
-        options: { responseCode: 200 },
-      },
-      id: 'respond-telegram',
-      name: 'Respond Telegram',
-      type: 'n8n-nodes-base.respondToWebhook',
-      typeVersion: 1.1,
-      position: [540, 220],
-    },
   ],
   connections: {
     'Webhook POST': { main: [[{ node: 'Auth Handler POST', type: 'main', index: 0 }]] },
     'Webhook Telegram': { main: [[{ node: 'Telegram Callback Handler', type: 'main', index: 0 }]] },
     'Auth Handler POST': { main: [[{ node: 'Respond POST', type: 'main', index: 0 }]] },
-    'Telegram Callback Handler': { main: [[{ node: 'Respond Telegram', type: 'main', index: 0 }]] },
   },
   settings: { executionOrder: 'v1' },
 };
