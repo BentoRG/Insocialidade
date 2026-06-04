@@ -6,7 +6,7 @@
  */
 
 /** Incrementar ao publicar mapa/paleta — força download de TMJ, PNG e JS. */
-export const ASSET_VERSION = 'canvas9';
+export const ASSET_VERSION = 'canvas10';
 
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")
@@ -30,7 +30,7 @@ export const CONFIG = {
   SESSION_KEY: 'insocialidade_session',
   PENDING_USER_KEY: 'insocialidade_pending_user',
   STATUS_POLL_MS: 5000,
-  PRESENCE_POLL_MS: 2000,
+  PRESENCE_POLL_MS: 250,
   PRESENCE_STALE_MS: 15000,
   MAP_URL: 'assets/maps/starter.tmj',
 };

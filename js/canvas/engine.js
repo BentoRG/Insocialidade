@@ -2,12 +2,12 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas9';
+import { createInput } from './input.js?v=canvas10';
 import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas9';
+} from './player.js?v=canvas10';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
@@ -75,7 +75,9 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
         remote.targetY = data.y;
         remote.color = data.character_color;
         remote.username = data.username;
-        remote.facing = data.facing || remote.facing;
+        if (!remote.moving) {
+          remote.facing = data.facing || remote.facing;
+        }
       }
     }
 
@@ -114,7 +116,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
 
     for (const remote of remotePlayers.values()) {
-      updateRemotePlayer(remote, dt);
+      updateRemotePlayer(remote, dt, MOVE_SPEED);
     }
 
     const camera = computeCamera(localPlayer, map, viewW, viewH);
@@ -123,8 +125,8 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     if (onMove && now - lastPresenceSend >= PRESENCE_SEND_MS) {
       lastPresenceSend = now;
       onMove({
-        x: Math.round(localPlayer.x),
-        y: Math.round(localPlayer.y),
+        x: localPlayer.x,
+        y: localPlayer.y,
         facing: localPlayer.facing,
       });
     }

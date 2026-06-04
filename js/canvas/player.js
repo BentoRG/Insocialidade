@@ -2,7 +2,7 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas9';
+import { moveWithCollision } from './collision.js?v=canvas10';
 
 const BODY_PX = 6;
 const LEG_PX = 1;
@@ -75,23 +75,38 @@ export function updateLocalPlayer(player, dt, map, input, speed) {
   return player;
 }
 
-export function updateRemotePlayer(player, dt) {
-  const lerp = Math.min(1, dt * 8);
-  player.x += (player.targetX - player.x) * lerp;
-  player.y += (player.targetY - player.y) * lerp;
+export function updateRemotePlayer(player, dt, speed) {
+  const dx = player.targetX - player.x;
+  const dy = player.targetY - player.y;
+  const dist = Math.hypot(dx, dy);
 
-  const dist = Math.hypot(player.targetX - player.x, player.targetY - player.y);
-  player.moving = dist > 0.5;
-
-  if (player.moving) {
-    player.animTimer += dt;
-    if (player.animTimer >= 0.12) {
-      player.animTimer = 0;
-      player.animFrame = (player.animFrame + 1) % 2;
-    }
-  } else {
+  if (dist < 0.5) {
+    player.x = player.targetX;
+    player.y = player.targetY;
+    player.moving = false;
     player.animFrame = 0;
+    player.animTimer = 0;
+    return player;
   }
+
+  player.moving = true;
+  const step = Math.min(dist, speed * dt);
+  player.x += (dx / dist) * step;
+  player.y += (dy / dist) * step;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    player.facing = dx > 0 ? 'right' : 'left';
+  } else {
+    player.facing = dy > 0 ? 'down' : 'up';
+  }
+
+  player.animTimer += dt;
+  if (player.animTimer >= 0.12) {
+    player.animTimer = 0;
+    player.animFrame = (player.animFrame + 1) % 2;
+  }
+
+  return player;
 }
 
 export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = false } = {}) {
