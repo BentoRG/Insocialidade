@@ -2,16 +2,18 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas10';
+import { createInput } from './input.js?v=canvas11';
 import {
+  createRemotePlayer,
+  syncRemotePlayer,
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas10';
+} from './player.js?v=canvas11';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
-const PRESENCE_SEND_MS = 200;
+const PRESENCE_SEND_MS = 100;
 
 function computeCamera(localPlayer, map, viewW, viewH) {
   let camX = localPlayer.x - viewW / 2;
@@ -57,27 +59,19 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       ids.add(data.id);
       let remote = remotePlayers.get(data.id);
       if (!remote) {
-        remotePlayers.set(data.id, {
+        remote = createRemotePlayer({
           id: data.id,
           x: data.x,
           y: data.y,
-          targetX: data.x,
-          targetY: data.y,
           color: data.character_color,
           username: data.username,
-          facing: data.facing || 'down',
-          moving: false,
-          animFrame: 0,
-          animTimer: 0,
+          facing: data.facing,
         });
+        remotePlayers.set(data.id, remote);
       } else {
-        remote.targetX = data.x;
-        remote.targetY = data.y;
+        syncRemotePlayer(remote, data);
         remote.color = data.character_color;
         remote.username = data.username;
-        if (!remote.moving) {
-          remote.facing = data.facing || remote.facing;
-        }
       }
     }
 
@@ -116,7 +110,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
 
     for (const remote of remotePlayers.values()) {
-      updateRemotePlayer(remote, dt, MOVE_SPEED);
+      updateRemotePlayer(remote, dt);
     }
 
     const camera = computeCamera(localPlayer, map, viewW, viewH);
