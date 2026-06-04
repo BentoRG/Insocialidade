@@ -158,16 +158,20 @@ body {
   pointer-events: none;
 }
 
-.password-toggle__icon--hide {
+.password-toggle__icon--show {
   display: none;
+}
+
+.password-toggle__icon--hide {
+  display: block;
 }
 
 .password-toggle--visible .password-toggle__icon--show {
-  display: none;
+  display: block;
 }
 
 .password-toggle--visible .password-toggle__icon--hide {
-  display: block;
+  display: none;
 }
 
 .auth-input:focus {
