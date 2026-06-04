@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Insocialidade — jogo" />
     <title>Insocialidade — Jogo</title>
-    <link rel="stylesheet" href="css/style.css?v=game11" />
+    <link rel="stylesheet" href="css/style.css?v=game12" />
 
     <!--
       Proteção de rota: game.js chama requireAuth() antes de renderizar.
@@ -20,9 +20,6 @@
         <div class="game-header__player">
           <span id="player-avatar" class="player-avatar" aria-hidden="true"></span>
           <span id="player-name" class="player-name"></span>
-          <button type="button" id="fullscreen-btn" class="btn btn--sm" aria-pressed="false">
-            Tela cheia
-          </button>
           <button type="button" id="logout-btn" class="btn btn--sm">Sair</button>
         </div>
       </header>
@@ -34,12 +31,22 @@
         </aside>
 
         <main class="game-main">
-          <canvas
-            id="game-canvas"
-            class="game-canvas"
-            tabindex="0"
-            aria-label="Area do jogo"
-          ></canvas>
+          <div class="game-canvas-wrap">
+            <canvas
+              id="game-canvas"
+              class="game-canvas"
+              tabindex="0"
+              aria-label="Area do jogo"
+            ></canvas>
+            <button
+              type="button"
+              id="fullscreen-btn"
+              class="btn btn--sm game-fullscreen-enter"
+              aria-pressed="false"
+            >
+              Tela cheia
+            </button>
+          </div>
           <p id="game-status" class="game-status" aria-live="polite"></p>
         </main>
       </div>
@@ -53,6 +60,6 @@
       </button>
     </div>
 
-    <script type="module" src="js/game.js?v=game5"></script>
+    <script type="module" src="js/game.js?v=game7"></script>
   </body>
 </html>

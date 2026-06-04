@@ -482,6 +482,12 @@ body {
   min-height: 1.2em;
 }
 
+.game-canvas-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+}
+
 .game-canvas {
   width: 100%;
   max-width: 640px;
@@ -492,6 +498,15 @@ body {
   image-rendering: crisp-edges;
   cursor: default;
   display: block;
+}
+
+.game-fullscreen-enter {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 5;
+  width: auto;
+  pointer-events: auto;
 }
 
 .game-fullscreen-exit {
@@ -520,7 +535,9 @@ body {
 #game-root:fullscreen .game-users,
 #game-root:-webkit-full-screen .game-users,
 #game-root:fullscreen .game-status,
-#game-root:-webkit-full-screen .game-status {
+#game-root:-webkit-full-screen .game-status,
+#game-root:fullscreen .game-fullscreen-enter,
+#game-root:-webkit-full-screen .game-fullscreen-enter {
   display: none !important;
 }
 
@@ -542,6 +559,16 @@ body {
   max-width: none;
   padding: 0;
   background: #111;
+}
+
+#game-root:fullscreen .game-canvas-wrap,
+#game-root:-webkit-full-screen .game-canvas-wrap {
+  flex: 1;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
 }
 
 #game-root:fullscreen .game-canvas,
