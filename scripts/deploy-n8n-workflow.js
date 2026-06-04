@@ -239,6 +239,17 @@ function handlePresenceLeave(userId) {
   return [{ json: { ok: true } }];
 }
 
+async function clearMessageButtons(cq) {
+  if (!cq?.message?.chat?.id || !cq?.message?.message_id) return;
+  try {
+    await telegramApi.call(this, 'editMessageReplyMarkup', {
+      chat_id: cq.message.chat.id,
+      message_id: cq.message.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+  } catch (err) {}
+}
+
 async function sendApprovalRequest(key, characterColor) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     throw new Error('Telegram não configurado no servidor.');
@@ -475,6 +486,7 @@ if (!['approve', 'reject'].includes(modAction)) {
       show_alert: true,
     });
   } catch (err) {}
+  await clearMessageButtons.call(this, cq);
   return [{ json: { ok: true } }];
 }
 
@@ -486,6 +498,7 @@ if (!storageKey) {
       show_alert: true,
     });
   } catch (err) {}
+  await clearMessageButtons.call(this, cq);
   return [{ json: { ok: true } }];
 }
 
@@ -498,6 +511,7 @@ if (!result.ok) {
       show_alert: true,
     });
   } catch (err) {}
+  await clearMessageButtons.call(this, cq);
   return [{ json: { ok: true } }];
 }
 
@@ -515,7 +529,9 @@ try {
     text: result.text,
     reply_markup: { inline_keyboard: [] },
   });
-} catch (err) {}
+} catch (err) {
+  await clearMessageButtons.call(this, cq);
+}
 
 return [{ json: { ok: true } }];
 `.trim();
