@@ -300,6 +300,18 @@ body {
   color: var(--focus);
 }
 
+.site-footer__brand {
+  margin-top: 0.5rem;
+}
+
+.site-footer__logo {
+  display: block;
+  margin: 0 auto;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
 .auth-form .form-group--colors {
   margin-top: 0.5rem;
 }
