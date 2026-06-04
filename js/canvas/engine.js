@@ -2,12 +2,12 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas7';
+import { createInput } from './input.js?v=canvas9';
 import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas7';
+} from './player.js?v=canvas9';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
@@ -96,7 +96,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       drawPlayer(ctx, remote, camera.x, camera.y, scale, { showLabel: true });
     }
 
-    drawPlayer(ctx, localPlayer, camera.x, camera.y, scale, { outline: true });
+    drawPlayer(ctx, localPlayer, camera.x, camera.y, scale);
   }
 
   function tick(now) {

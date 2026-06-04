@@ -2,12 +2,14 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas7';
+import { moveWithCollision } from './collision.js?v=canvas9';
 
-const LEG_OFFSETS = [
-  [0, 0],
-  [1, 0],
-];
+const BODY_PX = 6;
+const LEG_PX = 1;
+const LEG_H_PX = 2;
+const SPRITE_H_PX = BODY_PX + LEG_H_PX;
+
+const LEG_OFFSETS = [0, 1];
 
 export function createLocalPlayer({ x, y, color, username }) {
   return {
@@ -92,14 +94,7 @@ export function updateRemotePlayer(player, dt) {
   }
 }
 
-export function drawPlayer(
-  ctx,
-  player,
-  cameraX,
-  cameraY,
-  scale,
-  { showLabel = false, outline = false } = {}
-) {
+export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = false } = {}) {
   const screenX = Math.round((player.x - cameraX) * scale);
   const screenY = Math.round((player.y - cameraY) * scale);
   const px = scale;
@@ -107,23 +102,21 @@ export function drawPlayer(
   const bodyColor = player.color || '#222233';
   const legColor = shadeColor(bodyColor, -20);
 
-  const bodyW = 8 * px;
-  const bodyH = 8 * px;
+  const bodyW = BODY_PX * px;
+  const bodyH = BODY_PX * px;
   const bodyX = screenX - bodyW / 2;
-  const bodyY = screenY - 12 * px;
-
-  if (outline) {
-    ctx.fillStyle = '#f8f3e6';
-    ctx.fillRect(bodyX - px, bodyY - px, bodyW + 2 * px, bodyH + 2 * px);
-  }
+  const bodyY = screenY - SPRITE_H_PX * px;
 
   ctx.fillStyle = bodyColor;
   ctx.fillRect(bodyX, bodyY, bodyW, bodyH);
 
-  const legShift = player.moving ? LEG_OFFSETS[player.animFrame][0] * px : 0;
+  const legShift = player.moving ? LEG_OFFSETS[player.animFrame] * px : 0;
+  const legY = bodyY + bodyH;
+  const legW = LEG_PX * px;
+  const legH = LEG_H_PX * px;
   ctx.fillStyle = legColor;
-  ctx.fillRect(bodyX + 1 * px + legShift, bodyY + bodyH, 2 * px, 3 * px);
-  ctx.fillRect(bodyX + 5 * px - legShift, bodyY + bodyH, 2 * px, 3 * px);
+  ctx.fillRect(bodyX + 1 * px + legShift, legY, legW, legH);
+  ctx.fillRect(bodyX + 4 * px - legShift, legY, legW, legH);
 
   if (showLabel && player.username) {
     ctx.font = `${Math.max(8, 6 * px)}px ui-monospace, monospace`;

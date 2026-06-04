@@ -2,8 +2,8 @@
  * Colisão AABB do player vs tiles sólidos.
  */
 
-const PLAYER_W = 10;
-const PLAYER_H = 12;
+const PLAYER_W = 6;
+const PLAYER_H = 8;
 
 export function getPlayerBounds(x, y) {
   return {
