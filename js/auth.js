@@ -21,8 +21,15 @@ function normalizeCharacterColor(hex) {
   return value.startsWith('#') ? value : `#${value}`;
 }
 
+/** Chave de busca — ignora maiúsculas/minúsculas, mantém acentos. */
+export function normalizeUsernameKey(username) {
+  return username.trim().toLocaleLowerCase('pt-BR');
+}
+
 export function isValidUsername(username) {
-  return /^[a-zA-Z0-9_]{3,20}$/.test(username.trim());
+  const trimmed = username.trim();
+  if (trimmed.length < 3 || trimmed.length > 20) return false;
+  return /^[\p{L}0-9_]+$/u.test(trimmed);
 }
 
 export function validatePasswords(password, confirm) {
@@ -36,10 +43,12 @@ export function validatePasswords(password, confirm) {
 }
 
 export async function register({ username, password, confirmPassword, characterColor }) {
-  const trimmed = username.trim().toLowerCase();
+  const trimmed = username.trim();
 
   if (!isValidUsername(trimmed)) {
-    throw new Error('Usuário inválido. Use 3–20 caracteres (letras, números ou _).');
+    throw new Error(
+      'Usuário inválido. Use 3–20 caracteres: letras (com acentos), números ou _.'
+    );
   }
 
   const passwordError = validatePasswords(password, confirmPassword);
@@ -63,7 +72,7 @@ export async function register({ username, password, confirmPassword, characterC
 }
 
 export async function login({ username, password }) {
-  const trimmed = username.trim().toLowerCase();
+  const trimmed = username.trim();
 
   if (!isValidUsername(trimmed)) {
     throw new Error('Usuário ou senha incorretos.');
@@ -118,14 +127,14 @@ export function getStatusMessage(status) {
 
 /** Consulta se o cadastro foi aprovado, rejeitado ou ainda está pendente. */
 export async function checkApprovalStatus(username) {
-  const trimmed = username.trim().toLowerCase();
+  const trimmed = username.trim();
   if (!isValidUsername(trimmed)) {
     throw new Error('Usuário inválido.');
   }
 
   const data = await apiCheckStatus(trimmed);
   return {
-    username: trimmed,
+    username: data.username || trimmed,
     status: data.status,
     message: getStatusMessage(data.status),
   };

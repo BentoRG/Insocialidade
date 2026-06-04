@@ -57,6 +57,16 @@ if (!staticData.presence) staticData.presence = {};
 
 const PRESENCE_STALE_MS = 15000;
 
+function usernameKey(name) {
+  return String(name || '').trim().toLocaleLowerCase('pt-BR');
+}
+
+function isValidUsername(name) {
+  const trimmed = String(name || '').trim();
+  if (trimmed.length < 3 || trimmed.length > 20) return false;
+  return /^[\\p{L}0-9_]+$/u.test(trimmed);
+}
+
 async function telegramApi(method, body) {
   return this.helpers.httpRequest({
     method: 'POST',
@@ -204,29 +214,32 @@ function handlePresenceLeave(userId) {
   return [{ json: { ok: true } }];
 }
 
-async function sendApprovalRequest(username, characterColor) {
+async function sendApprovalRequest(key, characterColor) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     throw new Error('Telegram não configurado no servidor.');
   }
+
+  const user = staticData.users[key];
+  const display = user?.username || key;
 
   await telegramApi.call(this, 'sendMessage', {
     chat_id: TELEGRAM_CHAT_ID,
     text:
       '🎮 Novo cadastro — Insocialidade\\n\\n' +
-      '👤 Usuário: ' + username + '\\n' +
+      '👤 Usuário: ' + display + '\\n' +
       '🎨 Cor: ' + colorLabel(characterColor) + '\\n\\n' +
       'Aprove ou rejeite:',
     reply_markup: {
       inline_keyboard: [[
-        { text: '✅ Aprovar', callback_data: 'approve:' + username },
-        { text: '❌ Não aprovar', callback_data: 'reject:' + username },
+        { text: '✅ Aprovar', callback_data: 'approve:' + key },
+        { text: '❌ Não aprovar', callback_data: 'reject:' + key },
       ]],
     },
   });
 }
 
 async function moderateUser(username, modAction) {
-  const key = String(username || '').trim().toLowerCase();
+  const key = usernameKey(username);
   const user = staticData.users[key];
   if (!user) return { ok: false, error: 'Usuário não encontrado.' };
 
@@ -238,7 +251,7 @@ async function moderateUser(username, modAction) {
     ok: true,
     text:
       '🎮 Insocialidade — cadastro\\n\\n' +
-      '👤 ' + key + '\\n' +
+      '👤 ' + user.username + '\\n' +
       '🎨 ' + colorLabel(user.character_color) + '\\n\\n' +
       (modAction === 'approve'
         ? '✅ Aprovado — já pode entrar.'
@@ -255,12 +268,13 @@ const body = input.body || {};
 const action = body.action;
 
 async function handleRegister() {
-  const username = String(body.username || '').trim().toLowerCase();
+  const displayUsername = String(body.username || '').trim();
+  const key = usernameKey(displayUsername);
   const password = String(body.password || '');
   const characterColor = normalizeCharacterColor(body.characterColor);
 
-  if (!/^[a-z0-9_]{3,20}$/.test(username)) {
-    return [{ json: { ok: false, error: 'Usuário inválido.', httpStatus: 400 } }];
+  if (!isValidUsername(displayUsername)) {
+    return [{ json: { ok: false, error: 'Usuário inválido. Use 3–20 caracteres: letras (com acentos), números ou _.', httpStatus: 400 } }];
   }
   if (password.length < 6) {
     return [{ json: { ok: false, error: 'Senha muito curta.', httpStatus: 400 } }];
@@ -269,18 +283,19 @@ async function handleRegister() {
     return [{ json: { ok: false, error: 'Cor inválida. Escolha uma das cores do cadastro.', httpStatus: 400 } }];
   }
 
-  const existing = staticData.users[username];
+  const existing = staticData.users[key];
   if (existing) {
     if (existing.status === 'active') {
       return [{ json: { ok: false, error: 'Este usuário já está em uso.', httpStatus: 409 } }];
     }
 
     if (existing.status === 'pending') {
+      existing.username = displayUsername;
       existing.character_color = characterColor;
       existing.passwordHash = hashPassword(password, existing.salt);
-      staticData.users[username] = existing;
+      staticData.users[key] = existing;
       try {
-        await sendApprovalRequest.call(this, username, characterColor);
+        await sendApprovalRequest.call(this, key, characterColor);
       } catch (err) {
         return [{ json: { ok: false, error: 'Não foi possível enviar a solicitação no Telegram. Abra @InsocialidadeBot e envie /start, depois tente de novo.', httpStatus: 502 } }];
       }
@@ -292,9 +307,9 @@ async function handleRegister() {
 
   const salt = randomId('s_');
   const userId = randomId('u_');
-  staticData.users[username] = {
+  staticData.users[key] = {
     id: userId,
-    username,
+    username: displayUsername,
     character_color: characterColor,
     status: 'pending',
     salt,
@@ -303,9 +318,9 @@ async function handleRegister() {
   };
 
   try {
-    await sendApprovalRequest.call(this, username, characterColor);
+    await sendApprovalRequest.call(this, key, characterColor);
   } catch (err) {
-    delete staticData.users[username];
+    delete staticData.users[key];
     return [{ json: { ok: false, error: 'Não foi possível enviar a solicitação no Telegram. Abra @InsocialidadeBot e envie /start, depois tente de novo.', httpStatus: 502 } }];
   }
 
@@ -313,9 +328,13 @@ async function handleRegister() {
 }
 
 async function handleLogin() {
-  const username = String(body.username || '').trim().toLowerCase();
+  const displayUsername = String(body.username || '').trim();
+  const key = usernameKey(displayUsername);
   const password = String(body.password || '');
-  const user = staticData.users[username];
+  if (!isValidUsername(displayUsername)) {
+    return [{ json: { ok: false, error: 'Usuário ou senha incorretos.', httpStatus: 401 } }];
+  }
+  const user = staticData.users[key];
 
   if (!user || hashPassword(password, user.salt) !== user.passwordHash) {
     return [{ json: { ok: false, error: 'Usuário ou senha incorretos.', httpStatus: 401 } }];
@@ -346,14 +365,15 @@ function handleSession() {
 }
 
 function handleStatus() {
-  const username = String(body.username || '').trim().toLowerCase();
-  if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+  const displayUsername = String(body.username || '').trim();
+  const key = usernameKey(displayUsername);
+  if (!isValidUsername(displayUsername)) {
     return [{ json: { ok: false, error: 'Usuário inválido.', httpStatus: 400 } }];
   }
 
-  const user = staticData.users[username];
+  const user = staticData.users[key];
   if (!user) {
-    return [{ json: { ok: true, status: 'none', username } }];
+    return [{ json: { ok: true, status: 'none', username: displayUsername } }];
   }
 
   return [{ json: { ok: true, status: user.status, username: user.username } }];
@@ -414,9 +434,9 @@ if (String(cq.from?.id) !== adminId) {
 const raw = String(cq.data || '');
 const sep = raw.indexOf(':');
 const modAction = raw.slice(0, sep);
-const username = raw.slice(sep + 1).trim().toLowerCase();
+const username = raw.slice(sep + 1).trim();
 
-if (!['approve', 'reject'].includes(modAction) || !/^[a-z0-9_]{3,20}$/.test(username)) {
+if (!['approve', 'reject'].includes(modAction) || !username || !staticData.users[usernameKey(username)]) {
   try {
     await telegramApi.call(this, 'answerCallbackQuery', {
       callback_query_id: cq.id,

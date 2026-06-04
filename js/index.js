@@ -3,7 +3,13 @@
  */
 
 import { CONFIG, CHARACTER_COLORS } from './config.js';
-import { register, login, getSessionProfile, checkApprovalStatus } from './auth.js';
+import {
+  register,
+  login,
+  getSessionProfile,
+  checkApprovalStatus,
+  normalizeUsernameKey,
+} from './auth.js';
 
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
@@ -104,7 +110,7 @@ async function pollApprovalStatus(username) {
 }
 
 function startStatusPolling(username) {
-  const trimmed = username.trim().toLowerCase();
+  const trimmed = normalizeUsernameKey(username);
   rememberPendingUser(trimmed);
   stopStatusPolling();
   switchPanel('login');
