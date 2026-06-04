@@ -136,12 +136,12 @@ body {
   width: 100%;
   margin-top: 2px;
   padding: 0.55rem 0.65rem;
-  background: #b5d3b3;
-  border: 1px solid #9ab89a;
+  background: #afdd68;
+  border: 1px solid #87af54;
 }
 
 .btn--enter:hover:not(:disabled) {
-  background: #a5c5a5;
+  background: #bee582;
 }
 
 .btn--ghost {
