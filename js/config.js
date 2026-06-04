@@ -6,7 +6,7 @@
  */
 
 /** Incrementar ao publicar mapa/paleta — força download de TMJ, PNG e JS. */
-export const ASSET_VERSION = 'canvas12';
+export const ASSET_VERSION = 'canvas13';
 
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")
