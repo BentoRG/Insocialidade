@@ -5,8 +5,8 @@
  * Telegram e armazenamento de usuários ficam no servidor — nada sensível no front-end.
  */
 
-/** Incrementar ao publicar — força o navegador a baixar JS/CSS/mapas novos. */
-export const ASSET_VERSION = 'canvas6';
+/** Incrementar ao publicar mapa/paleta — força download de TMJ, PNG e JS. */
+export const ASSET_VERSION = 'canvas7';
 
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")
