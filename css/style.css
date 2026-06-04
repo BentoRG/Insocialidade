@@ -498,17 +498,19 @@ body {
 
 #game-root:fullscreen,
 #game-root:-webkit-full-screen {
+  position: relative;
   background: #111;
 }
 
 #game-root:fullscreen .game-fullscreen-exit,
 #game-root:-webkit-full-screen .game-fullscreen-exit {
   display: block;
-  position: absolute;
+  position: fixed;
   top: 0.75rem;
   right: 0.75rem;
-  z-index: 10;
+  z-index: 10000;
   width: auto;
+  pointer-events: auto;
 }
 
 #game-root:fullscreen .game-header,
@@ -526,6 +528,8 @@ body {
   min-height: 0;
   padding: 0;
   gap: 0;
+  position: relative;
+  z-index: 1;
 }
 
 #game-root:fullscreen .game-main,

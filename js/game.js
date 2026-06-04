@@ -36,20 +36,48 @@ function setStatus(message) {
   if (gameStatus) gameStatus.textContent = message;
 }
 
-function isFullscreen() {
-  return document.fullscreenElement === gameRoot;
+function getFullscreenElement() {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    null
+  );
 }
 
-async function toggleFullscreen() {
+function isFullscreen() {
+  return getFullscreenElement() === gameRoot;
+}
+
+async function exitFullscreen() {
+  try {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  } catch {
+    setStatus('Não foi possível sair da tela cheia.');
+  }
+}
+
+async function enterFullscreen() {
   if (!gameRoot) return;
   try {
-    if (isFullscreen()) {
-      await document.exitFullscreen();
-    } else {
+    if (gameRoot.requestFullscreen) {
       await gameRoot.requestFullscreen();
+    } else if (gameRoot.webkitRequestFullscreen) {
+      await gameRoot.webkitRequestFullscreen();
     }
   } catch {
     setStatus('Não foi possível entrar em tela cheia.');
+  }
+}
+
+async function toggleFullscreen() {
+  if (isFullscreen()) {
+    await exitFullscreen();
+  } else {
+    await enterFullscreen();
   }
 }
 
@@ -155,6 +183,7 @@ async function init() {
 
   logoutBtn.addEventListener('click', () => logout());
   fullscreenBtn?.addEventListener('click', () => toggleFullscreen());
+  exitFullscreenBtn?.addEventListener('click', () => toggleFullscreen());
   document.addEventListener('fullscreenchange', updateFullscreenButton);
   gameCanvas.addEventListener('dblclick', () => toggleFullscreen());
   updateFullscreenButton();
