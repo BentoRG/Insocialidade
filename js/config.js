@@ -6,7 +6,7 @@
  */
 
 /** Incrementar ao publicar — força o navegador a baixar JS/CSS/mapas novos. */
-export const ASSET_VERSION = 'canvas5';
+export const ASSET_VERSION = 'canvas6';
 
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")

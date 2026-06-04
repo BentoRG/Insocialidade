@@ -171,32 +171,40 @@ export async function loadMap(mapUrl) {
 
       ctx.imageSmoothingEnabled = false;
 
-      for (let row = startRow; row < endRow; row++) {
-        for (let col = startCol; col < endCol; col++) {
-          const idx = row * mapWidth + col;
-          const gid = groundData[idx];
-          if (!gid) continue;
+      const drawLayer = (layerData) => {
+        for (let row = startRow; row < endRow; row++) {
+          for (let col = startCol; col < endCol; col++) {
+            const idx = row * mapWidth + col;
+            const gid = layerData[idx];
+            if (!gid) continue;
 
-          const tileIndex = gid - firstGid;
-          if (tileIndex < 0) continue;
+            const tileIndex = gid - firstGid;
+            if (tileIndex < 0) continue;
 
-          const srcX = (tileIndex % columns) * tileWidth;
-          const srcY = Math.floor(tileIndex / columns) * tileHeight;
-          const destX = Math.round((col * tileWidth - cameraX) * scale);
-          const destY = Math.round((row * tileHeight - cameraY) * scale);
+            const srcX = (tileIndex % columns) * tileWidth;
+            const srcY = Math.floor(tileIndex / columns) * tileHeight;
+            const destX = Math.round((col * tileWidth - cameraX) * scale);
+            const destY = Math.round((row * tileHeight - cameraY) * scale);
 
-          ctx.drawImage(
-            image,
-            srcX,
-            srcY,
-            tileWidth,
-            tileHeight,
-            destX,
-            destY,
-            tileWidth * scale,
-            tileHeight * scale
-          );
+            ctx.drawImage(
+              image,
+              srcX,
+              srcY,
+              tileWidth,
+              tileHeight,
+              destX,
+              destY,
+              tileWidth * scale,
+              tileHeight * scale
+            );
+          }
         }
+      };
+
+      // ground = chão; collision = objetos sólidos (árvores, casas, água…)
+      drawLayer(groundData);
+      if (collisionData.length) {
+        drawLayer(collisionData);
       }
     },
   };

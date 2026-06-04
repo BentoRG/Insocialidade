@@ -2,7 +2,7 @@
  * Sprite procedural pixelado — quadrado com pernas.
  */
 
-import { moveWithCollision } from './collision.js?v=canvas5';
+import { moveWithCollision } from './collision.js?v=canvas6';
 
 const LEG_OFFSETS = [
   [0, 0],
