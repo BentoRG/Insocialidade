@@ -276,7 +276,7 @@ async function handleRegister() {
   if (!isValidUsername(displayUsername)) {
     return [{ json: { ok: false, error: 'Usuário inválido. Use 3–20 caracteres: letras (com acentos), números ou _.', httpStatus: 400 } }];
   }
-  if (password.length < 6) {
+  if (password.length < 4) {
     return [{ json: { ok: false, error: 'Senha muito curta.', httpStatus: 400 } }];
   }
   if (!VALID_CHARACTER_COLORS.has(characterColor)) {
@@ -331,7 +331,7 @@ async function handleLogin() {
   const displayUsername = String(body.username || '').trim();
   const key = usernameKey(displayUsername);
   const password = String(body.password || '');
-  if (!isValidUsername(displayUsername)) {
+  if (!isValidUsername(displayUsername) || password.length < 4) {
     return [{ json: { ok: false, error: 'Usuário ou senha incorretos.', httpStatus: 401 } }];
   }
   const user = staticData.users[key];

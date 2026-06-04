@@ -45,6 +45,21 @@ function switchPanel(panel) {
   registerPanel.hidden = isLogin;
 }
 
+function initPasswordToggles() {
+  document.querySelectorAll('.password-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+
+      const visible = input.type === 'text';
+      input.type = visible ? 'password' : 'text';
+      btn.classList.toggle('password-toggle--visible', !visible);
+      btn.setAttribute('aria-pressed', String(!visible));
+      btn.setAttribute('aria-label', visible ? 'Mostrar senha' : 'Ocultar senha');
+    });
+  });
+}
+
 function renderColorPicker() {
   colorGrid.innerHTML = CHARACTER_COLORS.map(
     (color, index) => {
@@ -119,6 +134,7 @@ function startStatusPolling(username) {
 }
 
 async function init() {
+  initPasswordToggles();
   renderColorPicker();
 
   const existing = await getSessionProfile();

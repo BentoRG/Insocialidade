@@ -32,10 +32,16 @@ export function isValidUsername(username) {
   return /^[\p{L}0-9_]+$/u.test(trimmed);
 }
 
-export function validatePasswords(password, confirm) {
-  if (password.length < 6) {
-    return 'A senha deve ter pelo menos 6 caracteres.';
+export function validatePassword(password) {
+  if (password.length < 4) {
+    return 'A senha deve ter pelo menos 4 caracteres.';
   }
+  return null;
+}
+
+export function validatePasswords(password, confirm) {
+  const passwordError = validatePassword(password);
+  if (passwordError) return passwordError;
   if (password !== confirm) {
     return 'As senhas não correspondem.';
   }
@@ -74,7 +80,7 @@ export async function register({ username, password, confirmPassword, characterC
 export async function login({ username, password }) {
   const trimmed = username.trim();
 
-  if (!isValidUsername(trimmed)) {
+  if (!isValidUsername(trimmed) || validatePassword(password)) {
     throw new Error('Usuário ou senha incorretos.');
   }
 
