@@ -3,7 +3,7 @@
  */
 
 import { createInput } from './input.js?v=canvas18';
-import { createMinimap } from './minimap.js?v=canvas31';
+import { createMinimap } from './minimap.js?v=canvas32';
 import {
   createRemotePlayer,
   syncRemotePlayer,
@@ -16,6 +16,8 @@ const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
 const FULLSCREEN_ZOOM = 5;
 const PRESENCE_SEND_MS = 33;
+const PAUSED_MINIMAP_HEIGHT = 0.5;
+const PAUSE_OVERLAY = 'rgba(0, 0, 0, 0.35)';
 
 function computeCamera(localPlayer, map, viewW, viewH) {
   let camX = localPlayer.x - viewW / 2;
@@ -46,6 +48,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   let lastSentFacing = localPlayer.facing;
   let lastSentMoving = localPlayer.moving;
   let resizeObserver = null;
+  let paused = false;
 
   function isFullscreen() {
     const root = canvas.closest('#game-root');
@@ -109,13 +112,20 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
     drawPlayer(ctx, localPlayer, camera.x, camera.y, scale);
 
-    if (isFullscreen()) {
+    const screenW = canvas.width / dpr;
+    const screenH = canvas.height / dpr;
+
+    if (paused) {
+      ctx.fillStyle = PAUSE_OVERLAY;
+      ctx.fillRect(0, 0, screenW, screenH);
+
       minimap.draw(ctx, {
         camera,
         viewW,
         viewH,
-        screenW: canvas.width / dpr,
-        screenH: canvas.height / dpr,
+        screenW,
+        screenH,
+        heightFraction: PAUSED_MINIMAP_HEIGHT,
       });
     }
   }
@@ -132,10 +142,12 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       return;
     }
 
-    updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
+    if (!paused) {
+      updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
 
-    for (const remote of remotePlayers.values()) {
-      updateRemotePlayer(remote, dt);
+      for (const remote of remotePlayers.values()) {
+        updateRemotePlayer(remote, dt);
+      }
     }
 
     for (const listener of tickListeners) {
@@ -148,7 +160,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     const camera = computeCamera(localPlayer, map, viewW, viewH);
     render(camera);
 
-    if (onMove) {
+    if (onMove && !paused) {
       const moved =
         Math.hypot(localPlayer.x - lastSentX, localPlayer.y - lastSentY) > 0.05;
       const turned = localPlayer.facing !== lastSentFacing;
@@ -189,6 +201,15 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   return {
     setRemotePlayers,
     resize,
+    isPaused: () => paused,
+    togglePause() {
+      paused = !paused;
+      if (paused) {
+        localPlayer.moving = false;
+        input.clear();
+      }
+      return paused;
+    },
     getLocalPlayer: () => localPlayer,
     getRemotePlayers: () => Array.from(remotePlayers.values()),
     getTileSize: () => ({ tileWidth: map.tileWidth, tileHeight: map.tileHeight }),

@@ -3,7 +3,6 @@
  */
 
 const PADDING = 8;
-const HEIGHT_FRACTION = 0.2;
 const PANEL_BG = 'rgba(0, 0, 0, 0.55)';
 const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const VIEWPORT_STROKE = 'rgba(255, 255, 255, 0.9)';
@@ -26,11 +25,11 @@ function computeDisplaySize(mapWidth, mapHeight, screenH, heightFraction) {
   return { width, height };
 }
 
-export function createMinimap(map, { heightFraction = HEIGHT_FRACTION } = {}) {
+export function createMinimap(map) {
   const surface = bakeMapSurface(map);
 
   return {
-    draw(ctx, { camera, viewW, viewH, screenH }) {
+    draw(ctx, { camera, viewW, viewH, screenH, heightFraction }) {
       const display = computeDisplaySize(map.width, map.height, screenH, heightFraction);
       const x = PADDING;
       const y = PADDING;

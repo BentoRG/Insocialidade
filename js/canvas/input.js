@@ -52,5 +52,9 @@ export function createInput() {
       window.removeEventListener('keyup', onKeyUp);
       pressed.clear();
     },
+
+    clear() {
+      pressed.clear();
+    },
   };
 }

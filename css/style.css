@@ -744,6 +744,15 @@ body {
   pointer-events: auto;
 }
 
+.game-pause-btn {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 5;
+  width: auto;
+  pointer-events: auto;
+}
+
 .game-fullscreen-exit {
   display: none;
 }
@@ -760,6 +769,16 @@ body {
   position: fixed;
   top: 0.75rem;
   right: 0.75rem;
+  z-index: 10000;
+  width: auto;
+  pointer-events: auto;
+}
+
+#game-root:fullscreen .game-pause-btn,
+#game-root:-webkit-full-screen .game-pause-btn {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
   z-index: 10000;
   width: auto;
   pointer-events: auto;

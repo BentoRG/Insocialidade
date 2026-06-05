@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas19';
 import { createLocalPlayer } from './canvas/player.js?v=canvas26';
-import { createGameEngine } from './canvas/engine.js?v=canvas31';
+import { createGameEngine } from './canvas/engine.js?v=canvas32';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat5';
 import { createRealtimePresence } from './realtime.js?v=rt1';
@@ -22,6 +22,7 @@ const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const pauseBtn = document.getElementById('pause-btn');
 const exitFullscreenBtn = document.getElementById('exit-fullscreen-btn');
 const gameRoot = document.getElementById('game-root');
 const gameCanvas = document.getElementById('game-canvas');
@@ -97,6 +98,13 @@ function updateFullscreenButton() {
   const active = isFullscreen();
   fullscreenBtn.textContent = active ? 'Sair da tela cheia' : 'Tela cheia';
   fullscreenBtn.setAttribute('aria-pressed', String(active));
+}
+
+function updatePauseButton(engine) {
+  if (!pauseBtn) return;
+  const active = engine.isPaused();
+  pauseBtn.textContent = active ? 'Continuar' : 'Pausar';
+  pauseBtn.setAttribute('aria-pressed', String(active));
 }
 
 function paintCanvasMessage(title, detail = '') {
@@ -264,6 +272,12 @@ async function init() {
         }
       : null,
   });
+
+  pauseBtn?.addEventListener('click', () => {
+    engine.togglePause();
+    updatePauseButton(engine);
+  });
+  updatePauseButton(engine);
 
   realtime = createRealtimePresence({
     url: CONFIG.REALTIME_WS_URL,
