@@ -3,7 +3,7 @@
  */
 
 import { createInput } from './input.js?v=canvas18';
-import { createMinimap } from './minimap.js?v=canvas32';
+import { createMinimap } from './minimap.js?v=canvas33';
 import {
   createRemotePlayer,
   syncRemotePlayer,
@@ -16,7 +16,7 @@ const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
 const FULLSCREEN_ZOOM = 5;
 const PRESENCE_SEND_MS = 33;
-const PAUSED_MINIMAP_HEIGHT = 0.5;
+const PAUSED_MINIMAP_HEIGHT = 0.8;
 const PAUSE_OVERLAY = 'rgba(0, 0, 0, 0.35)';
 
 function computeCamera(localPlayer, map, viewW, viewH) {

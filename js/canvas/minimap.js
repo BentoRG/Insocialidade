@@ -2,7 +2,6 @@
  * Minimapa — pré-render do terreno + retângulo da viewport.
  */
 
-const PADDING = 8;
 const PANEL_BG = 'rgba(0, 0, 0, 0.55)';
 const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const VIEWPORT_STROKE = 'rgba(255, 255, 255, 0.9)';
@@ -29,12 +28,12 @@ export function createMinimap(map) {
   const surface = bakeMapSurface(map);
 
   return {
-    draw(ctx, { camera, viewW, viewH, screenH, heightFraction }) {
+    draw(ctx, { camera, viewW, viewH, screenW, screenH, heightFraction }) {
       const display = computeDisplaySize(map.width, map.height, screenH, heightFraction);
-      const x = PADDING;
-      const y = PADDING;
       const panelW = display.width + 4;
       const panelH = display.height + 4;
+      const x = Math.round((screenW - panelW) / 2);
+      const y = Math.round((screenH - panelH) / 2);
 
       ctx.save();
       ctx.imageSmoothingEnabled = false;
