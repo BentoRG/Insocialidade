@@ -26,14 +26,45 @@ export function createLocalChat({
   let openingPeerId = null;
   let idleHint = '';
   const dismissedPeerIds = new Set();
+  const seenMessageIds = new Set();
+  const submitBtn = formEl?.querySelector('button[type="submit"]');
 
   function peerIdKey(id) {
     return String(id ?? '');
   }
 
-  function tilePayload() {
+  function isSelf(from) {
+    return peerIdKey(from) === peerIdKey(localUserId);
+  }
+
+  function positionPayload() {
+    const local = getLocalPlayer();
     const { tileWidth, tileHeight } = getTileSize();
-    return { tileWidth, tileHeight };
+    return {
+      x: local.x,
+      y: local.y,
+      tileWidth,
+      tileHeight,
+    };
+  }
+
+  function isPeerInRange() {
+    if (!activePeer) return false;
+
+    const local = getLocalPlayer();
+    const remotes = getRemotePlayers();
+    const { tileWidth, tileHeight } = getTileSize();
+    return findNearbyPlayers(local, remotes, tileWidth, tileHeight).some(
+      (player) => peerIdKey(player.id) === peerIdKey(activePeer.id)
+    );
+  }
+
+  function setSendEnabled(enabled) {
+    if (inputEl) {
+      inputEl.disabled = !enabled;
+      inputEl.placeholder = enabled ? 'Mensagem…' : 'Aproxime-se para enviar…';
+    }
+    if (submitBtn) submitBtn.disabled = !enabled;
   }
 
   function renderIdle() {
@@ -64,17 +95,31 @@ export function createLocalChat({
     }
   }
 
+  function ingestMessages(messages, peerUsername) {
+    if (!messages?.length) return;
+
+    for (const msg of messages) {
+      if (!msg?.id || seenMessageIds.has(msg.id)) continue;
+      seenMessageIds.add(msg.id);
+      lastMessageId = Math.max(lastMessageId, msg.id);
+      appendMessage({
+        from: msg.from,
+        text: msg.text,
+        username: isSelf(msg.from) ? 'Você' : peerUsername || activePeer?.username,
+      });
+    }
+  }
+
   function appendMessage({ from, text, username }) {
     if (!messagesEl) return;
 
     const row = document.createElement('div');
     row.className =
-      'game-local-chat__msg' +
-      (from === localUserId ? ' game-local-chat__msg--self' : '');
+      'game-local-chat__msg' + (isSelf(from) ? ' game-local-chat__msg--self' : '');
 
     const author = document.createElement('span');
     author.className = 'game-local-chat__msg-author';
-    author.textContent = from === localUserId ? 'Você' : username || 'Jogador';
+    author.textContent = isSelf(from) ? 'Você' : username || 'Jogador';
 
     const body = document.createElement('span');
     body.className = 'game-local-chat__msg-text';
@@ -88,6 +133,8 @@ export function createLocalChat({
   function showActive(peer) {
     activePeer = peer;
     idleHint = '';
+    seenMessageIds.clear();
+    lastMessageId = 0;
     if (nearbyEl) {
       nearbyEl.hidden = true;
       nearbyEl.replaceChildren();
@@ -96,13 +143,15 @@ export function createLocalChat({
     if (activeEl) activeEl.hidden = false;
     if (peerNameEl) peerNameEl.textContent = peer.username || 'Jogador';
     if (messagesEl) messagesEl.replaceChildren();
-    lastMessageId = 0;
+    setSendEnabled(isPeerInRange());
     inputEl?.focus();
   }
 
   function hideActive() {
     activePeer = null;
     lastMessageId = 0;
+    seenMessageIds.clear();
+    setSendEnabled(false);
     if (activeEl) activeEl.hidden = true;
     if (messagesEl) messagesEl.replaceChildren();
     if (nearbyEl) nearbyEl.hidden = false;
@@ -127,21 +176,15 @@ export function createLocalChat({
       const data = await apiLocalChatPoll(token, {
         peerId: activePeer.id,
         after: lastMessageId,
-        ...tilePayload(),
+        ...positionPayload(),
       });
 
       if (data.peer?.username && peerNameEl) {
         peerNameEl.textContent = data.peer.username;
+        activePeer.username = data.peer.username;
       }
 
-      for (const msg of data.messages || []) {
-        lastMessageId = Math.max(lastMessageId, msg.id);
-        appendMessage({
-          from: msg.from,
-          text: msg.text,
-          username: msg.from === localUserId ? 'Você' : data.peer?.username,
-        });
-      }
+      ingestMessages(data.messages, data.peer?.username);
     } catch (err) {
       if (String(err.message || err).includes('fora_de_alcance')) {
         appendSystem('Você se afastou — chat encerrado.');
@@ -187,13 +230,14 @@ export function createLocalChat({
     try {
       const data = await apiLocalChatOpen(token, {
         peerId,
-        ...tilePayload(),
+        ...positionPayload(),
       });
       showActive({
         id: data.peer.id,
         username: data.peer.username,
         color: data.peer.character_color,
       });
+      ingestMessages(data.messages, data.peer.username);
       startPoll();
     } catch (err) {
       dismissedPeerIds.add(peerId);
@@ -211,6 +255,11 @@ export function createLocalChat({
 
   async function sendMessage(text) {
     if (!activePeer) return;
+    if (!isPeerInRange()) {
+      appendSystem('Aproxime-se do jogador para enviar.');
+      return;
+    }
+
     const token = getToken();
     if (!token) return;
 
@@ -221,14 +270,11 @@ export function createLocalChat({
       const data = await apiLocalChatSend(token, {
         peerId: activePeer.id,
         text: trimmed,
-        ...tilePayload(),
+        ...positionPayload(),
       });
-      lastMessageId = Math.max(lastMessageId, data.message?.id || 0);
-      appendMessage({
-        from: localUserId,
-        text: trimmed,
-        username: 'Você',
-      });
+      if (data.message?.id) {
+        ingestMessages([data.message], activePeer.username);
+      }
     } catch (err) {
       if (String(err.message || err).includes('fora_de_alcance')) {
         appendSystem('Você se afastou — chat encerrado.');
@@ -251,7 +297,9 @@ export function createLocalChat({
     }
 
     if (activePeer) {
-      if (!nearbyIds.has(peerIdKey(activePeer.id))) {
+      const inRange = nearbyIds.has(peerIdKey(activePeer.id));
+      setSendEnabled(inRange);
+      if (!inRange) {
         appendSystem('Você se afastou — chat encerrado.');
         closeChat();
       }
@@ -274,6 +322,8 @@ export function createLocalChat({
     if (inputEl) inputEl.value = '';
     void sendMessage(text);
   });
+
+  setSendEnabled(false);
 
   return {
     update() {

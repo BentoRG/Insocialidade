@@ -75,14 +75,14 @@ export async function apiPresenceLeave(token) {
   return apiRequest('presence_leave', { token });
 }
 
-export async function apiLocalChatOpen(token, { peerId, tileWidth, tileHeight }) {
-  return apiRequest('local_chat_open', { token, peerId, tileWidth, tileHeight });
+export async function apiLocalChatOpen(token, { peerId, x, y, tileWidth, tileHeight }) {
+  return apiRequest('local_chat_open', { token, peerId, x, y, tileWidth, tileHeight });
 }
 
-export async function apiLocalChatSend(token, { peerId, text, tileWidth, tileHeight }) {
-  return apiRequest('local_chat_send', { token, peerId, text, tileWidth, tileHeight });
+export async function apiLocalChatSend(token, { peerId, text, x, y, tileWidth, tileHeight }) {
+  return apiRequest('local_chat_send', { token, peerId, text, x, y, tileWidth, tileHeight });
 }
 
-export async function apiLocalChatPoll(token, { peerId, after, tileWidth, tileHeight }) {
-  return apiRequest('local_chat_poll', { token, peerId, after, tileWidth, tileHeight });
+export async function apiLocalChatPoll(token, { peerId, after, x, y, tileWidth, tileHeight }) {
+  return apiRequest('local_chat_poll', { token, peerId, after, x, y, tileWidth, tileHeight });
 }

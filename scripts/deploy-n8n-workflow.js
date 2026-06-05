@@ -317,14 +317,30 @@ function tilesApart(ax, ay, bx, by, tileW, tileH) {
   return Math.max(Math.abs(ac - bc), Math.abs(ar - br));
 }
 
-function arePlayersNearby(userId, peerId, tileW, tileH) {
-  const self = staticData.presence[userId];
+function arePlayersNearby(userId, peerId, tileW, tileH, clientX, clientY) {
   const peer = staticData.presence[peerId];
-  if (!self || !peer) return false;
+  if (!peer) return false;
+
   const now = Date.now();
-  if (now - self.lastSeen > PRESENCE_STALE_MS) return false;
   if (now - peer.lastSeen > PRESENCE_STALE_MS) return false;
-  return tilesApart(self.x, self.y, peer.x, peer.y, tileW, tileH) <= 2;
+
+  const reqX = Number(clientX);
+  const reqY = Number(clientY);
+  let selfX;
+  let selfY;
+
+  if (Number.isFinite(reqX) && Number.isFinite(reqY)) {
+    selfX = reqX;
+    selfY = reqY;
+  } else {
+    const self = staticData.presence[userId];
+    if (!self) return false;
+    if (now - self.lastSeen > PRESENCE_STALE_MS) return false;
+    selfX = self.x;
+    selfY = self.y;
+  }
+
+  return tilesApart(selfX, selfY, peer.x, peer.y, tileW, tileH) <= 2;
 }
 
 function getOrCreateChatRoom(userId, peerId, now) {
@@ -344,6 +360,8 @@ function handleLocalChatOpen(userId) {
   const peerId = String(body.peerId || '').trim();
   const tileW = Number(body.tileWidth) || 16;
   const tileH = Number(body.tileHeight) || 16;
+  const x = body.x;
+  const y = body.y;
 
   if (!peerId || peerId === userId) {
     return [{ json: { ok: false, error: 'Jogador inválido.', httpStatus: 400 } }];
@@ -354,13 +372,13 @@ function handleLocalChatOpen(userId) {
     return [{ json: { ok: false, error: 'Jogador offline.', httpStatus: 404 } }];
   }
 
-  if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
+  if (!arePlayersNearby(userId, peerId, tileW, tileH, x, y)) {
     return [{ json: { ok: false, error: 'Aproxime-se do jogador (até 2 tiles).', httpStatus: 403 } }];
   }
 
   const now = Date.now();
   pruneLocalChats(now);
-  getOrCreateChatRoom(userId, peerId, now);
+  const room = getOrCreateChatRoom(userId, peerId, now);
 
   return [{
     json: {
@@ -370,6 +388,7 @@ function handleLocalChatOpen(userId) {
         username: peer.username,
         character_color: peer.character_color,
       },
+      messages: room.messages || [],
     },
   }];
 }
@@ -379,6 +398,8 @@ function handleLocalChatSend(userId) {
   const text = String(body.text || '').trim();
   const tileW = Number(body.tileWidth) || 16;
   const tileH = Number(body.tileHeight) || 16;
+  const x = body.x;
+  const y = body.y;
 
   if (!peerId || peerId === userId) {
     return [{ json: { ok: false, error: 'Jogador inválido.', httpStatus: 400 } }];
@@ -387,7 +408,7 @@ function handleLocalChatSend(userId) {
     return [{ json: { ok: false, error: 'Mensagem inválida.', httpStatus: 400 } }];
   }
 
-  if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
+  if (!arePlayersNearby(userId, peerId, tileW, tileH, x, y)) {
     return [{ json: { ok: false, error: 'fora_de_alcance', httpStatus: 403 } }];
   }
 
@@ -411,12 +432,14 @@ function handleLocalChatPoll(userId) {
   const after = Number(body.after) || 0;
   const tileW = Number(body.tileWidth) || 16;
   const tileH = Number(body.tileHeight) || 16;
+  const x = body.x;
+  const y = body.y;
 
   if (!peerId || peerId === userId) {
     return [{ json: { ok: false, error: 'Jogador inválido.', httpStatus: 400 } }];
   }
 
-  if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
+  if (!arePlayersNearby(userId, peerId, tileW, tileH, x, y)) {
     return [{ json: { ok: false, error: 'fora_de_alcance', httpStatus: 403 } }];
   }
 
