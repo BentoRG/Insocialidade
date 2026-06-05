@@ -24,6 +24,15 @@ export function createLocalChat({
   let lastMessageId = 0;
   let pollTimer = null;
   let pollStopped = false;
+  let lastNearbySignature = null;
+
+  function peerIdKey(id) {
+    return String(id ?? '');
+  }
+
+  function invalidateNearby() {
+    lastNearbySignature = null;
+  }
 
   function tilePayload() {
     const { tileWidth, tileHeight } = getTileSize();
@@ -37,10 +46,22 @@ export function createLocalChat({
     const remotes = getRemotePlayers();
     const { tileWidth, tileHeight } = getTileSize();
     const nearby = findNearbyPlayers(local, remotes, tileWidth, tileHeight);
+    const visible = nearby.filter(
+      (player) => peerIdKey(player.id) !== peerIdKey(activePeer?.id)
+    );
+    const signature = visible.length
+      ? visible
+          .map((player) => `${peerIdKey(player.id)}:${player.username || ''}`)
+          .sort()
+          .join('|')
+      : '__empty__';
+
+    if (signature === lastNearbySignature) return;
+    lastNearbySignature = signature;
 
     nearbyEl.replaceChildren();
 
-    if (!nearby.length) {
+    if (!visible.length) {
       const hint = document.createElement('p');
       hint.className = 'game-local-chat__hint';
       hint.textContent = 'Ninguém por perto no momento.';
@@ -48,14 +69,13 @@ export function createLocalChat({
       return;
     }
 
-    for (const player of nearby) {
-      if (activePeer?.id === player.id) continue;
-
+    for (const player of visible) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn btn--sm game-local-chat__start';
       btn.textContent = `Conversar com ${player.username}`;
-      btn.addEventListener('click', () => void openChat(player));
+      btn.dataset.peerId = peerIdKey(player.id);
+      btn.dataset.peerUsername = player.username || 'Jogador';
       nearbyEl.appendChild(btn);
     }
   }
@@ -83,6 +103,7 @@ export function createLocalChat({
 
   function showActive(peer) {
     activePeer = peer;
+    invalidateNearby();
     if (activeEl) activeEl.hidden = false;
     if (peerNameEl) peerNameEl.textContent = peer.username || 'Jogador';
     if (messagesEl) messagesEl.replaceChildren();
@@ -94,6 +115,7 @@ export function createLocalChat({
   function hideActive() {
     activePeer = null;
     lastMessageId = 0;
+    invalidateNearby();
     if (activeEl) activeEl.hidden = true;
     if (messagesEl) messagesEl.replaceChildren();
     renderNearby();
@@ -164,9 +186,15 @@ export function createLocalChat({
     const token = getToken();
     if (!token) return;
 
+    showActive({
+      id: player.id,
+      username: player.username || 'Jogador',
+      color: player.color,
+    });
+
     try {
       const data = await apiLocalChatOpen(token, {
-        peerId: player.id,
+        peerId: peerIdKey(player.id),
         ...tilePayload(),
       });
       showActive({
@@ -177,6 +205,7 @@ export function createLocalChat({
       appendSystem(`Chat aberto com ${data.peer.username}.`);
       startPoll();
     } catch (err) {
+      closeChat();
       if (nearbyEl) {
         const errHint = document.createElement('p');
         errHint.className = 'game-local-chat__hint';
@@ -223,6 +252,15 @@ export function createLocalChat({
     }
   }
 
+  nearbyEl?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-peer-id]');
+    if (!btn || !nearbyEl.contains(btn)) return;
+    void openChat({
+      id: btn.dataset.peerId,
+      username: btn.dataset.peerUsername,
+    });
+  });
+
   closeBtn?.addEventListener('click', () => closeChat());
 
   formEl?.addEventListener('submit', (event) => {
@@ -240,7 +278,7 @@ export function createLocalChat({
         const remotes = getRemotePlayers();
         const { tileWidth, tileHeight } = getTileSize();
         const stillNear = findNearbyPlayers(local, remotes, tileWidth, tileHeight).some(
-          (p) => p.id === activePeer.id
+          (p) => peerIdKey(p.id) === peerIdKey(activePeer.id)
         );
         if (!stillNear) {
           appendSystem('Você se afastou — chat encerrado.');
