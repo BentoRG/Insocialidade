@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=palette5';
+import { CONFIG, resolveAsset } from './config.js?v=palette6';
 import { requireAuth, logout } from './auth.js';
 import {
   getStoredSession,
@@ -11,7 +11,7 @@ import {
   apiPresenceWorld,
   apiPresenceLeave,
 } from './api.js';
-import { loadMap } from './canvas/map.js?v=canvas19';
+import { loadMap } from './canvas/map.js?v=canvas20';
 import { createLocalPlayer } from './canvas/player.js?v=canvas26';
 import { createGameEngine } from './canvas/engine.js?v=canvas33';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';

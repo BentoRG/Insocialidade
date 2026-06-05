@@ -3,6 +3,7 @@
  */
 
 import { collidesAt } from './collision.js?v=canvas18';
+import { parseRegions, createRegionLookup } from './regions.js?v=canvas20';
 
 const POCO_TILE_GID = 8;
 
@@ -280,6 +281,12 @@ export async function loadMap(mapUrl) {
 
   map.id = getMapId(mapFetchUrl);
   map.defaultSpawn = getDefaultSpawn(map, mapData, collisionData);
+
+  const regions = parseRegions(mapData);
+  const regionLookup = createRegionLookup(regions);
+  map.regions = regions;
+  map.getRegionAt = regionLookup.getRegionAt.bind(regionLookup);
+  map.getRegionNameAt = regionLookup.getRegionNameAt.bind(regionLookup);
 
   return map;
 }
