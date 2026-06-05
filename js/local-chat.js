@@ -13,7 +13,6 @@ export function createLocalChat({
   messagesEl,
   formEl,
   inputEl,
-  closeBtn,
   getLocalPlayer,
   getRemotePlayers,
   getTileSize,
@@ -205,10 +204,7 @@ export function createLocalChat({
     }
   }
 
-  function closeChat(manual = false) {
-    if (manual && activePeer) {
-      dismissedPeerIds.add(peerIdKey(activePeer.id));
-    }
+  function closeChat() {
     stopPoll();
     hideActive();
   }
@@ -271,8 +267,6 @@ export function createLocalChat({
     if (closest) void openChat(closest);
     else renderIdle();
   }
-
-  closeBtn?.addEventListener('click', () => closeChat(true));
 
   formEl?.addEventListener('submit', (event) => {
     event.preventDefault();

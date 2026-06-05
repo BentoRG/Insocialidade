@@ -15,7 +15,7 @@ import { loadMap } from './canvas/map.js?v=canvas19';
 import { createLocalPlayer } from './canvas/player.js?v=canvas26';
 import { createGameEngine } from './canvas/engine.js?v=canvas27';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
-import { createLocalChat } from './local-chat.js?v=chat3';
+import { createLocalChat } from './local-chat.js?v=chat4';
 import { createRealtimePresence } from './realtime.js?v=rt1';
 
 const playerName = document.getElementById('player-name');
@@ -287,7 +287,6 @@ async function init() {
     messagesEl: document.getElementById('local-chat-messages'),
     formEl: document.getElementById('local-chat-form'),
     inputEl: document.getElementById('local-chat-input'),
-    closeBtn: document.getElementById('local-chat-close'),
     getLocalPlayer: () => engine.getLocalPlayer(),
     getRemotePlayers: () => engine.getRemotePlayers(),
     getTileSize: () => engine.getTileSize(),
