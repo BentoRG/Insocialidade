@@ -1,9 +1,9 @@
 /**
- * Chat local — proximidade de 1 tile e mensagens em tempo real (polling).
+ * Chat local — abre automaticamente a até 2 tiles de outro jogador.
  */
 
 import { CONFIG } from './config.js';
-import { findNearbyPlayers } from './proximity.js';
+import { findNearbyPlayers, pickClosestPlayer } from './proximity.js';
 import { apiLocalChatOpen, apiLocalChatSend, apiLocalChatPoll } from './api.js';
 
 export function createLocalChat({
@@ -24,14 +24,12 @@ export function createLocalChat({
   let lastMessageId = 0;
   let pollTimer = null;
   let pollStopped = false;
-  let lastNearbySignature = null;
+  let openingPeerId = null;
+  let idleHint = '';
+  const dismissedPeerIds = new Set();
 
   function peerIdKey(id) {
     return String(id ?? '');
-  }
-
-  function invalidateNearby() {
-    lastNearbySignature = null;
   }
 
   function tilePayload() {
@@ -39,44 +37,31 @@ export function createLocalChat({
     return { tileWidth, tileHeight };
   }
 
-  function renderNearby() {
-    if (!nearbyEl) return;
+  function renderIdle() {
+    if (!nearbyEl || activePeer) return;
 
-    const local = getLocalPlayer();
-    const remotes = getRemotePlayers();
-    const { tileWidth, tileHeight } = getTileSize();
-    const nearby = findNearbyPlayers(local, remotes, tileWidth, tileHeight);
-    const visible = nearby.filter(
-      (player) => peerIdKey(player.id) !== peerIdKey(activePeer?.id)
-    );
-    const signature = visible.length
-      ? visible
-          .map((player) => `${peerIdKey(player.id)}:${player.username || ''}`)
-          .sort()
-          .join('|')
-      : '__empty__';
+    const text =
+      idleHint || 'Aproxime-se de outro jogador (até 2 tiles) para conversar.';
+    if (nearbyEl.dataset.idleHint === text) return;
 
-    if (signature === lastNearbySignature) return;
-    lastNearbySignature = signature;
-
+    nearbyEl.dataset.idleHint = text;
     nearbyEl.replaceChildren();
+    const hint = document.createElement('p');
+    hint.className = 'game-local-chat__hint';
+    hint.textContent = text;
+    nearbyEl.appendChild(hint);
+  }
 
-    if (!visible.length) {
-      const hint = document.createElement('p');
-      hint.className = 'game-local-chat__hint';
-      hint.textContent = 'Ninguém por perto no momento.';
-      nearbyEl.appendChild(hint);
-      return;
-    }
-
-    for (const player of visible) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn--sm game-local-chat__start';
-      btn.textContent = `Conversar com ${player.username}`;
-      btn.dataset.peerId = peerIdKey(player.id);
-      btn.dataset.peerUsername = player.username || 'Jogador';
-      nearbyEl.appendChild(btn);
+  function showIdleHint(text) {
+    idleHint = text;
+    renderIdle();
+    if (text) {
+      setTimeout(() => {
+        if (idleHint === text) {
+          idleHint = '';
+          renderIdle();
+        }
+      }, 4000);
     }
   }
 
@@ -103,22 +88,26 @@ export function createLocalChat({
 
   function showActive(peer) {
     activePeer = peer;
-    invalidateNearby();
+    idleHint = '';
+    if (nearbyEl) {
+      nearbyEl.hidden = true;
+      nearbyEl.replaceChildren();
+      delete nearbyEl.dataset.idleHint;
+    }
     if (activeEl) activeEl.hidden = false;
     if (peerNameEl) peerNameEl.textContent = peer.username || 'Jogador';
     if (messagesEl) messagesEl.replaceChildren();
     lastMessageId = 0;
     inputEl?.focus();
-    renderNearby();
   }
 
   function hideActive() {
     activePeer = null;
     lastMessageId = 0;
-    invalidateNearby();
     if (activeEl) activeEl.hidden = true;
     if (messagesEl) messagesEl.replaceChildren();
-    renderNearby();
+    if (nearbyEl) nearbyEl.hidden = false;
+    renderIdle();
   }
 
   function stopPoll() {
@@ -183,18 +172,22 @@ export function createLocalChat({
   }
 
   async function openChat(player) {
+    const peerId = peerIdKey(player.id);
     const token = getToken();
-    if (!token) return;
+    if (!token || openingPeerId === peerId) return;
+    if (activePeer && peerIdKey(activePeer.id) === peerId) return;
+
+    openingPeerId = peerId;
 
     showActive({
       id: player.id,
       username: player.username || 'Jogador',
-      color: player.color,
+      color: player.color || player.character_color,
     });
 
     try {
       const data = await apiLocalChatOpen(token, {
-        peerId: peerIdKey(player.id),
+        peerId,
         ...tilePayload(),
       });
       showActive({
@@ -202,22 +195,20 @@ export function createLocalChat({
         username: data.peer.username,
         color: data.peer.character_color,
       });
-      appendSystem(`Chat aberto com ${data.peer.username}.`);
       startPoll();
     } catch (err) {
+      dismissedPeerIds.add(peerId);
       closeChat();
-      if (nearbyEl) {
-        const errHint = document.createElement('p');
-        errHint.className = 'game-local-chat__hint';
-        errHint.textContent = err.message || 'Não foi possível abrir o chat.';
-        nearbyEl.prepend(errHint);
-        setTimeout(() => errHint.remove(), 4000);
-      }
-      renderNearby();
+      showIdleHint(err.message || 'Não foi possível abrir o chat.');
+    } finally {
+      openingPeerId = null;
     }
   }
 
-  function closeChat() {
+  function closeChat(manual = false) {
+    if (manual && activePeer) {
+      dismissedPeerIds.add(peerIdKey(activePeer.id));
+    }
     stopPoll();
     hideActive();
   }
@@ -252,16 +243,36 @@ export function createLocalChat({
     }
   }
 
-  nearbyEl?.addEventListener('click', (event) => {
-    const btn = event.target.closest('[data-peer-id]');
-    if (!btn || !nearbyEl.contains(btn)) return;
-    void openChat({
-      id: btn.dataset.peerId,
-      username: btn.dataset.peerUsername,
-    });
-  });
+  function syncProximity() {
+    const local = getLocalPlayer();
+    const remotes = getRemotePlayers();
+    const { tileWidth, tileHeight } = getTileSize();
+    const nearby = findNearbyPlayers(local, remotes, tileWidth, tileHeight);
+    const nearbyIds = new Set(nearby.map((player) => peerIdKey(player.id)));
 
-  closeBtn?.addEventListener('click', () => closeChat());
+    for (const id of dismissedPeerIds) {
+      if (!nearbyIds.has(id)) dismissedPeerIds.delete(id);
+    }
+
+    if (activePeer) {
+      if (!nearbyIds.has(peerIdKey(activePeer.id))) {
+        appendSystem('Você se afastou — chat encerrado.');
+        closeChat();
+      }
+      return;
+    }
+
+    if (openingPeerId) return;
+
+    const candidates = nearby.filter(
+      (player) => !dismissedPeerIds.has(peerIdKey(player.id))
+    );
+    const closest = pickClosestPlayer(local, candidates);
+    if (closest) void openChat(closest);
+    else renderIdle();
+  }
+
+  closeBtn?.addEventListener('click', () => closeChat(true));
 
   formEl?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -272,19 +283,7 @@ export function createLocalChat({
 
   return {
     update() {
-      renderNearby();
-      if (activePeer) {
-        const local = getLocalPlayer();
-        const remotes = getRemotePlayers();
-        const { tileWidth, tileHeight } = getTileSize();
-        const stillNear = findNearbyPlayers(local, remotes, tileWidth, tileHeight).some(
-          (p) => peerIdKey(p.id) === peerIdKey(activePeer.id)
-        );
-        if (!stillNear) {
-          appendSystem('Você se afastou — chat encerrado.');
-          closeChat();
-        }
-      }
+      syncProximity();
     },
     destroy() {
       stopPoll();

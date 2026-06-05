@@ -324,7 +324,7 @@ function arePlayersNearby(userId, peerId, tileW, tileH) {
   const now = Date.now();
   if (now - self.lastSeen > PRESENCE_STALE_MS) return false;
   if (now - peer.lastSeen > PRESENCE_STALE_MS) return false;
-  return tilesApart(self.x, self.y, peer.x, peer.y, tileW, tileH) <= 1;
+  return tilesApart(self.x, self.y, peer.x, peer.y, tileW, tileH) <= 2;
 }
 
 function getOrCreateChatRoom(userId, peerId, now) {
@@ -355,7 +355,7 @@ function handleLocalChatOpen(userId) {
   }
 
   if (!arePlayersNearby(userId, peerId, tileW, tileH)) {
-    return [{ json: { ok: false, error: 'Aproxime-se a um tile do jogador.', httpStatus: 403 } }];
+    return [{ json: { ok: false, error: 'Aproxime-se do jogador (até 2 tiles).', httpStatus: 403 } }];
   }
 
   const now = Date.now();
