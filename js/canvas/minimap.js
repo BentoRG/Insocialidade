@@ -3,7 +3,7 @@
  */
 
 const PADDING = 8;
-const HEIGHT_FRACTION = 0.125;
+const HEIGHT_FRACTION = 0.2;
 const PANEL_BG = 'rgba(0, 0, 0, 0.55)';
 const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const VIEWPORT_STROKE = 'rgba(255, 255, 255, 0.9)';
