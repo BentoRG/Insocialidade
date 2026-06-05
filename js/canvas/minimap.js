@@ -3,7 +3,7 @@
  */
 
 const PADDING = 8;
-const MAX_DISPLAY_PX = 220;
+const HEIGHT_FRACTION = 0.125;
 const PANEL_BG = 'rgba(0, 0, 0, 0.55)';
 const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const VIEWPORT_STROKE = 'rgba(255, 255, 255, 0.9)';
@@ -20,20 +20,18 @@ function bakeMapSurface(map) {
   return canvas;
 }
 
-function computeDisplaySize(mapWidth, mapHeight, maxPx) {
-  const scale = maxPx / Math.max(mapWidth, mapHeight);
-  return {
-    width: Math.round(mapWidth * scale),
-    height: Math.round(mapHeight * scale),
-  };
+function computeDisplaySize(mapWidth, mapHeight, screenH, heightFraction) {
+  const height = Math.round(screenH * heightFraction);
+  const width = Math.round(height * (mapWidth / mapHeight));
+  return { width, height };
 }
 
-export function createMinimap(map, { maxDisplayPx = MAX_DISPLAY_PX } = {}) {
+export function createMinimap(map, { heightFraction = HEIGHT_FRACTION } = {}) {
   const surface = bakeMapSurface(map);
-  const display = computeDisplaySize(map.width, map.height, maxDisplayPx);
 
   return {
-    draw(ctx, { camera, viewW, viewH }) {
+    draw(ctx, { camera, viewW, viewH, screenH }) {
+      const display = computeDisplaySize(map.width, map.height, screenH, heightFraction);
       const x = PADDING;
       const y = PADDING;
       const panelW = display.width + 4;
