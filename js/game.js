@@ -13,7 +13,7 @@ import {
 } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas19';
 import { createLocalPlayer } from './canvas/player.js?v=canvas26';
-import { createGameEngine } from './canvas/engine.js?v=canvas28';
+import { createGameEngine } from './canvas/engine.js?v=canvas29';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat5';
 import { createRealtimePresence } from './realtime.js?v=rt1';

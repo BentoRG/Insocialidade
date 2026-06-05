@@ -3,7 +3,7 @@
  */
 
 import { createInput } from './input.js?v=canvas18';
-import { createMinimap } from './minimap.js?v=canvas28';
+import { createMinimap } from './minimap.js?v=canvas29';
 import {
   createRemotePlayer,
   syncRemotePlayer,
@@ -109,13 +109,15 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
     drawPlayer(ctx, localPlayer, camera.x, camera.y, scale);
 
-    minimap.draw(ctx, {
-      camera,
-      viewW,
-      viewH,
-      screenW: canvas.width / dpr,
-      screenH: canvas.height / dpr,
-    });
+    if (isFullscreen()) {
+      minimap.draw(ctx, {
+        camera,
+        viewW,
+        viewH,
+        screenW: canvas.width / dpr,
+        screenH: canvas.height / dpr,
+      });
+    }
   }
 
   function tick(now) {

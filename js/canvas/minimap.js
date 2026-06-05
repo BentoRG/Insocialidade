@@ -3,7 +3,7 @@
  */
 
 const PADDING = 8;
-const MAX_DISPLAY_PX = 160;
+const MAX_DISPLAY_PX = 220;
 const PANEL_BG = 'rgba(0, 0, 0, 0.55)';
 const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const VIEWPORT_STROKE = 'rgba(255, 255, 255, 0.9)';
