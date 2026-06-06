@@ -21,14 +21,16 @@ const PAUSE_OVERLAY = 'rgba(0, 0, 0, 0.35)';
 const REGION_LABEL_BG = 'rgba(0, 0, 0, 0.55)';
 const REGION_LABEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const REGION_LABEL_TEXT = '#f8f3e6';
+const REGION_LABEL_FONT = 12;
+const REGION_LABEL_FONT_FULLSCREEN = 18;
 
-function drawRegionLabel(ctx, regionName, screenW) {
+function drawRegionLabel(ctx, regionName, screenW, { fullscreen = false } = {}) {
   if (!regionName) return;
 
-  const fontSize = 12;
-  const padX = 10;
-  const padY = 6;
-  const top = 8;
+  const fontSize = fullscreen ? REGION_LABEL_FONT_FULLSCREEN : REGION_LABEL_FONT;
+  const padX = fullscreen ? 14 : 10;
+  const padY = fullscreen ? 8 : 6;
+  const top = fullscreen ? 12 : 8;
 
   ctx.save();
   ctx.font = `${fontSize}px ui-monospace, monospace`;
@@ -162,7 +164,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     }
 
     const regionName = map.getRegionNameAt?.(localPlayer.x, localPlayer.y);
-    drawRegionLabel(ctx, regionName, screenW);
+    drawRegionLabel(ctx, regionName, screenW, { fullscreen: isFullscreen() });
   }
 
   function tick(now) {
