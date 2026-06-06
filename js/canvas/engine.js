@@ -18,6 +18,38 @@ const FULLSCREEN_ZOOM = 5;
 const PRESENCE_SEND_MS = 33;
 const PAUSED_MINIMAP_HEIGHT = 0.8;
 const PAUSE_OVERLAY = 'rgba(0, 0, 0, 0.35)';
+const REGION_LABEL_BG = 'rgba(0, 0, 0, 0.55)';
+const REGION_LABEL_BORDER = 'rgba(248, 243, 230, 0.85)';
+const REGION_LABEL_TEXT = '#f8f3e6';
+
+function drawRegionLabel(ctx, regionName, screenW) {
+  if (!regionName) return;
+
+  const fontSize = 12;
+  const padX = 10;
+  const padY = 6;
+  const top = 8;
+
+  ctx.save();
+  ctx.font = `${fontSize}px ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const textW = ctx.measureText(regionName).width;
+  const panelW = textW + padX * 2;
+  const panelH = fontSize + padY * 2;
+  const x = Math.round((screenW - panelW) / 2);
+
+  ctx.fillStyle = REGION_LABEL_BG;
+  ctx.fillRect(x, top, panelW, panelH);
+  ctx.strokeStyle = REGION_LABEL_BORDER;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, top + 0.5, panelW - 1, panelH - 1);
+
+  ctx.fillStyle = REGION_LABEL_TEXT;
+  ctx.fillText(regionName, screenW / 2, top + padY);
+  ctx.restore();
+}
 
 function computeCamera(localPlayer, map, viewW, viewH) {
   let camX = localPlayer.x - viewW / 2;
@@ -128,6 +160,9 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
         heightFraction: PAUSED_MINIMAP_HEIGHT,
       });
     }
+
+    const regionName = map.getRegionNameAt?.(localPlayer.x, localPlayer.y);
+    drawRegionLabel(ctx, regionName, screenW);
   }
 
   function tick(now) {
