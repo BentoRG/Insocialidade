@@ -10,7 +10,7 @@ import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas27';
+} from './player.js?v=canvas29';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;

@@ -218,14 +218,14 @@ export function drawPlayer(
     const labelY = bodyY - 2 * px;
 
     if (labelVariant === 'local') {
-      ctx.fillStyle = player.color || '#222233';
-      ctx.fillText(player.username, screenX, labelY);
-    } else {
       ctx.fillStyle = '#000';
       ctx.strokeStyle = '#fff';
-      ctx.lineWidth = Math.max(2, px * 0.35);
-      ctx.strokeText(player.username, screenX, labelY);
-      ctx.fillText(player.username, screenX, labelY);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
     }
+    ctx.lineWidth = Math.max(2, px * 0.35);
+    ctx.strokeText(player.username, screenX, labelY);
+    ctx.fillText(player.username, screenX, labelY);
   }
 }
