@@ -6,7 +6,7 @@
  */
 
 /** Incrementar ao publicar mapa/paleta — força download de TMJ, PNG e JS. */
-export const ASSET_VERSION = 'palette6';
+export const ASSET_VERSION = 'palette7';
 
 export const CONFIG = {
   // URL do webhook n8n (workflow "Insocialidade Auth")

@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=palette6';
+import { CONFIG, resolveAsset } from './config.js?v=palette7';
 import { requireAuth, logout } from './auth.js';
 import {
   getStoredSession,
