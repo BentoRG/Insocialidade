@@ -10,7 +10,7 @@ import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas26';
+} from './player.js?v=canvas27';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
@@ -141,10 +141,16 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     map.draw(ctx, camera.x, camera.y, viewW, viewH, scale);
 
     for (const remote of remotePlayers.values()) {
-      drawPlayer(ctx, remote, camera.x, camera.y, scale, { showLabel: true });
+      drawPlayer(ctx, remote, camera.x, camera.y, scale, {
+        showLabel: true,
+        labelVariant: 'remote',
+      });
     }
 
-    drawPlayer(ctx, localPlayer, camera.x, camera.y, scale);
+    drawPlayer(ctx, localPlayer, camera.x, camera.y, scale, {
+      showLabel: true,
+      labelVariant: 'local',
+    });
 
     const screenW = canvas.width / dpr;
     const screenH = canvas.height / dpr;

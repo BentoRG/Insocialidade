@@ -189,7 +189,14 @@ function drawSpriteFill(ctx, originX, originY, px, mask, color) {
   }
 }
 
-export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = false } = {}) {
+export function drawPlayer(
+  ctx,
+  player,
+  cameraX,
+  cameraY,
+  scale,
+  { showLabel = false, labelVariant = 'remote' } = {}
+) {
   const screenX = (player.x - cameraX) * scale;
   const screenY = (player.y - cameraY) * scale;
   const px = scale;
@@ -207,11 +214,18 @@ export function drawPlayer(ctx, player, cameraX, cameraY, scale, { showLabel = f
   if (showLabel && player.username) {
     ctx.font = `${Math.max(8, 6 * px)}px ui-monospace, monospace`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#f8f3e6';
-    ctx.strokeStyle = '#222233';
-    ctx.lineWidth = 2;
+    ctx.textBaseline = 'bottom';
     const labelY = bodyY - 2 * px;
-    ctx.strokeText(player.username, screenX, labelY);
-    ctx.fillText(player.username, screenX, labelY);
+
+    if (labelVariant === 'local') {
+      ctx.fillStyle = player.color || '#222233';
+      ctx.fillText(player.username, screenX, labelY);
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = Math.max(2, px * 0.35);
+      ctx.strokeText(player.username, screenX, labelY);
+      ctx.fillText(player.username, screenX, labelY);
+    }
   }
 }
