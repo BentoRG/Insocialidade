@@ -39,6 +39,7 @@ let lastN8nPresenceSend = 0;
 let lastN8nX = null;
 let lastN8nY = null;
 let lastN8nFacing = null;
+let removeKeyboardShortcuts = null;
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -105,6 +106,30 @@ function updatePauseButton(engine) {
   const active = engine.isPaused();
   pauseBtn.textContent = active ? 'Continuar' : 'Pausar';
   pauseBtn.setAttribute('aria-pressed', String(active));
+}
+
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+}
+
+function setupKeyboardShortcuts(engine) {
+  function onKeyDown(e) {
+    if (e.repeat || isTypingTarget(e.target)) return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      engine.togglePause();
+      updatePauseButton(engine);
+    } else if (e.code === 'KeyF') {
+      e.preventDefault();
+      void toggleFullscreen();
+    }
+  }
+
+  window.addEventListener('keydown', onKeyDown);
+  return () => window.removeEventListener('keydown', onKeyDown);
 }
 
 function paintCanvasMessage(title, detail = '') {
@@ -278,6 +303,7 @@ async function init() {
     updatePauseButton(engine);
   });
   updatePauseButton(engine);
+  removeKeyboardShortcuts = setupKeyboardShortcuts(engine);
 
   realtime = createRealtimePresence({
     url: CONFIG.REALTIME_WS_URL,
@@ -321,6 +347,7 @@ async function init() {
   });
 
   window.addEventListener('beforeunload', () => {
+    removeKeyboardShortcuts?.();
     stopUsersSync();
     realtime?.destroy();
     removeChatTick?.();
