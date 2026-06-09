@@ -1,5 +1,5 @@
 /**
- * Sincronização em tempo real via WebSocket (posição dos outros jogadores).
+ * Sincronização em tempo real via WebSocket (presença, chat e usuários online).
  */
 
 const SEND_MS = 33;
@@ -13,7 +13,11 @@ export function createRealtimePresence({
   profile,
   spawn,
   onPlayers,
+  onUsers,
   onStatus,
+  onChatOpened,
+  onChatMessage,
+  onChatError,
 }) {
   let ws = null;
   let stopped = false;
@@ -58,6 +62,11 @@ export function createRealtimePresence({
       return;
     }
 
+    if (msg.type === 'users' && Array.isArray(msg.users)) {
+      onUsers?.(msg.users);
+      return;
+    }
+
     if (msg.type === 'join' && msg.player?.id) {
       players.set(msg.player.id, msg.player);
       emitPlayers();
@@ -81,6 +90,21 @@ export function createRealtimePresence({
         lastSeen: msg.t,
       });
       emitPlayers();
+      return;
+    }
+
+    if (msg.type === 'chat_opened') {
+      onChatOpened?.(msg);
+      return;
+    }
+
+    if (msg.type === 'chat_message') {
+      onChatMessage?.(msg);
+      return;
+    }
+
+    if (msg.type === 'chat_error') {
+      onChatError?.(msg.error || 'Erro no chat.');
     }
   }
 
@@ -146,10 +170,22 @@ export function createRealtimePresence({
     send({ type: 'move', x, y, facing, moving: Boolean(moving) });
   }
 
+  function openChat({ peerId, tileWidth, tileHeight }) {
+    if (!joined) return;
+    send({ type: 'chat_open', peerId, tileWidth, tileHeight });
+  }
+
+  function sendChat({ peerId, text, tileWidth, tileHeight }) {
+    if (!joined) return;
+    send({ type: 'chat_send', peerId, text, tileWidth, tileHeight });
+  }
+
   connect();
 
   return {
     sendMove,
+    openChat,
+    sendChat,
     destroy() {
       stopped = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);

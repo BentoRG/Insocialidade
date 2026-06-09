@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * Servidor WebSocket de presença — movimento em tempo real entre jogadores.
- * Valida o mesmo token de sessão do workflow n8n (Insocialidade Auth).
+ * Servidor Insocialidade — auth HTTP, presença, chat local e jogadores online.
  */
 
 import { createServer } from 'http';
@@ -9,6 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
+import { createAuthStore } from './auth-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -30,32 +30,169 @@ loadEnvFile();
 
 const PORT = Number(process.env.PRESENCE_WS_PORT || 8787);
 const SESSION_SECRET = process.env.SESSION_SECRET || 'insocialidade-session-v1';
-const WS_PATH = process.env.PRESENCE_WS_PATH || '/ws/presence';
+const APPROVAL_SECRET = process.env.APPROVAL_SECRET || 'insocialidade-approve-2026';
+const N8N_APPROVAL_WEBHOOK_URL =
+  process.env.N8N_APPROVAL_WEBHOOK_URL ||
+  'http://127.0.0.1:5678/webhook/insocialidade-approval-notify';
+const WS_PATH = process.env.PRESENCE_WS_PATH || '/ws';
+const authStore = createAuthStore({ sessionSecret: SESSION_SECRET });
 const STALE_MS = Number(process.env.PRESENCE_STALE_MS || 15000);
+const CHAT_TILE_RADIUS = 2;
+const CHAT_MAX_TEXT = 500;
+const CHAT_ROOM_STALE_MS = 30 * 60 * 1000;
+const CHAT_MAX_MESSAGES = 200;
+const DEFAULT_TILE = 16;
 
 /** @type {Map<string, Map<string, ClientState>>} */
 const rooms = new Map();
 
-function simpleHash(input) {
-  let hash = 5381;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash << 5) + hash + input.charCodeAt(i);
-    hash |= 0;
-  }
-  return (hash >>> 0).toString(16);
-}
+/** @type {Map<string, ChatRoom>} */
+const chatRooms = new Map();
 
 function verifyToken(token) {
-  if (!token) return null;
-  try {
-    const data = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
-    if (!data?.sub || !data?.iat || !data?.sig) return null;
-    if (Date.now() - data.iat > 7 * 24 * 60 * 60 * 1000) return null;
-    if (simpleHash(`${SESSION_SECRET}${data.sub}${data.iat}`) !== data.sig) return null;
-    return String(data.sub);
-  } catch {
-    return null;
+  return authStore.verifyToken(token);
+}
+
+const CORS_ORIGINS = new Set([
+  'https://bentorg.github.io',
+  'https://gepetodigital.com',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+]);
+
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  if (origin && (CORS_ORIGINS.has(origin) || origin.endsWith('.github.io'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
   }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function sendJson(res, status, payload) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(payload));
+}
+
+function readJsonBody(req) {
+  return new Promise((resolveBody, rejectBody) => {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 65536) {
+        rejectBody(new Error('Payload too large'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (!raw) {
+        resolveBody({});
+        return;
+      }
+      try {
+        resolveBody(JSON.parse(raw));
+      } catch {
+        rejectBody(new Error('JSON inválido'));
+      }
+    });
+    req.on('error', rejectBody);
+  });
+}
+
+function notifyApproval({ userId, username, characterColor }) {
+  if (!N8N_APPROVAL_WEBHOOK_URL) return;
+  fetch(N8N_APPROVAL_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, username, characterColor }),
+  }).catch((err) => {
+    console.warn('Falha ao notificar n8n:', err.message || err);
+  });
+}
+
+async function handleAuthRoute(req, res) {
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { ok: false, error: 'Corpo inválido.' });
+    return;
+  }
+
+  const action = body.action;
+  let result;
+
+  switch (action) {
+    case 'register':
+      result = await authStore.register(body);
+      if (result.ok && result.notify) {
+        notifyApproval(result.notify);
+        delete result.notify;
+      }
+      break;
+    case 'login':
+      result = authStore.login(body);
+      break;
+    case 'session':
+      result = authStore.validateSession(body);
+      break;
+    case 'status':
+      result = authStore.checkStatus(body);
+      break;
+    default:
+      sendJson(res, 400, { ok: false, error: 'Ação inválida.' });
+      return;
+  }
+
+  sendJson(res, result.httpStatus || (result.ok ? 200 : 400), result);
+}
+
+async function handleModerateRoute(req, res) {
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { ok: false, error: 'Corpo inválido.' });
+    return;
+  }
+
+  if (body.secret !== APPROVAL_SECRET) {
+    sendJson(res, 403, { ok: false, error: 'Não autorizado.' });
+    return;
+  }
+
+  const action = body.action;
+  if (!['approve', 'reject'].includes(action)) {
+    sendJson(res, 400, { ok: false, error: 'Ação inválida.' });
+    return;
+  }
+
+  const result = await authStore.moderateUser({ userId: body.userId, action });
+  sendJson(res, result.ok ? 200 : 404, result);
+}
+
+async function handleHttpRequest(req, res) {
+  setCorsHeaders(req, res);
+
+  if (req.method === 'OPTIONS' && (req.url === '/auth' || req.url === '/auth/moderate')) {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/auth') {
+    await handleAuthRoute(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/auth/moderate') {
+    await handleModerateRoute(req, res);
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end('Insocialidade server\n');
 }
 
 function getRoom(mapId) {
@@ -76,6 +213,17 @@ function publicPlayer(client) {
   };
 }
 
+function onlineUsersInRoom(room) {
+  return [...room.values()]
+    .map((client) => ({
+      id: client.id,
+      username: client.username,
+      character_color: client.character_color,
+      online: true,
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'));
+}
+
 function send(ws, payload) {
   if (ws.readyState === ws.OPEN) {
     ws.send(JSON.stringify(payload));
@@ -88,13 +236,23 @@ function broadcastRoom(room, exceptId, payload) {
   }
 }
 
+function broadcastUsers(room) {
+  const users = onlineUsersInRoom(room);
+  for (const client of room.values()) {
+    send(client.ws, { type: 'users', users });
+  }
+}
+
 function removeClient(client) {
   if (!client?.roomId || !client?.id) return;
   const room = rooms.get(client.roomId);
   if (!room) return;
   room.delete(client.id);
   if (room.size === 0) rooms.delete(client.roomId);
-  else broadcastRoom(room, client.id, { type: 'leave', id: client.id });
+  else {
+    broadcastRoom(room, client.id, { type: 'leave', id: client.id });
+    broadcastUsers(room);
+  }
 }
 
 function pruneStaleRooms() {
@@ -107,14 +265,157 @@ function pruneStaleRooms() {
       }
     }
     if (room.size === 0) rooms.delete(mapId);
+    else broadcastUsers(room);
   }
 }
 
-/** @typedef {{ ws: import('ws').WebSocket, id: string, roomId: string, username: string, character_color: string, x: number, y: number, facing: string, moving: boolean, lastSeen: number }} ClientState */
+function chatRoomId(userId, peerId) {
+  return [userId, peerId].sort().join(':');
+}
 
-const server = createServer((_req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('Insocialidade presence WebSocket\n');
+function pruneChatRooms(now) {
+  for (const [roomId, room] of chatRooms.entries()) {
+    if (now - (room.updatedAt || 0) > CHAT_ROOM_STALE_MS) {
+      chatRooms.delete(roomId);
+      continue;
+    }
+    if (room.messages.length > CHAT_MAX_MESSAGES) {
+      room.messages = room.messages.slice(-CHAT_MAX_MESSAGES);
+    }
+  }
+}
+
+function tilesApart(ax, ay, bx, by, tileW, tileH) {
+  const ac = Math.floor(ax / tileW);
+  const ar = Math.floor(ay / tileH);
+  const bc = Math.floor(bx / tileW);
+  const br = Math.floor(by / tileH);
+  return Math.max(Math.abs(ac - bc), Math.abs(ar - br));
+}
+
+function findClientById(peerId) {
+  for (const room of rooms.values()) {
+    const client = room.get(peerId);
+    if (client) return client;
+  }
+  return null;
+}
+
+function areClientsNearby(self, peer, tileW = DEFAULT_TILE, tileH = DEFAULT_TILE) {
+  if (!self || !peer) return false;
+  return tilesApart(self.x, self.y, peer.x, peer.y, tileW, tileH) <= CHAT_TILE_RADIUS;
+}
+
+function getOrCreateChatRoom(userId, peerId, now) {
+  const roomId = chatRoomId(userId, peerId);
+  if (!chatRooms.has(roomId)) {
+    chatRooms.set(roomId, {
+      participants: [userId, peerId].sort(),
+      messages: [],
+      updatedAt: now,
+      nextMsgId: 1,
+    });
+  }
+  return chatRooms.get(roomId);
+}
+
+function sendChatError(ws, error) {
+  send(ws, { type: 'chat_error', error });
+}
+
+function deliverChatMessage(userId, peerId, message) {
+  const self = findClientById(userId);
+  const peer = findClientById(peerId);
+  const payload = { type: 'chat_message', peerId, message };
+  if (self) send(self.ws, payload);
+  if (peer) send(peer.ws, payload);
+}
+
+function handleChatOpen(client, msg) {
+  const peerId = String(msg.peerId || '').trim();
+  const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
+  const tileH = Number(msg.tileHeight) || DEFAULT_TILE;
+
+  if (!peerId || peerId === client.id) {
+    sendChatError(client.ws, 'Jogador inválido.');
+    return;
+  }
+
+  const peer = findClientById(peerId);
+  if (!peer) {
+    sendChatError(client.ws, 'Jogador offline.');
+    return;
+  }
+
+  if (!areClientsNearby(client, peer, tileW, tileH)) {
+    sendChatError(client.ws, 'Aproxime-se do jogador (até 2 tiles).');
+    return;
+  }
+
+  const now = Date.now();
+  pruneChatRooms(now);
+  const room = getOrCreateChatRoom(client.id, peerId, now);
+
+  send(client.ws, {
+    type: 'chat_opened',
+    peer: {
+      id: peer.id,
+      username: peer.username,
+      character_color: peer.character_color,
+    },
+    messages: room.messages,
+  });
+}
+
+function handleChatSend(client, msg) {
+  const peerId = String(msg.peerId || '').trim();
+  const text = String(msg.text || '').trim();
+  const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
+  const tileH = Number(msg.tileHeight) || DEFAULT_TILE;
+
+  if (!peerId || peerId === client.id) {
+    sendChatError(client.ws, 'Jogador inválido.');
+    return;
+  }
+  if (!text || text.length > CHAT_MAX_TEXT) {
+    sendChatError(client.ws, 'Mensagem inválida.');
+    return;
+  }
+
+  const peer = findClientById(peerId);
+  if (!peer) {
+    sendChatError(client.ws, 'Jogador offline.');
+    return;
+  }
+
+  if (!areClientsNearby(client, peer, tileW, tileH)) {
+    sendChatError(client.ws, 'fora_de_alcance');
+    return;
+  }
+
+  const now = Date.now();
+  pruneChatRooms(now);
+  const room = getOrCreateChatRoom(client.id, peerId, now);
+  const message = {
+    id: room.nextMsgId++,
+    from: client.id,
+    text,
+    at: now,
+  };
+  room.messages.push(message);
+  room.updatedAt = now;
+
+  deliverChatMessage(client.id, peerId, message);
+}
+
+/** @typedef {{ ws: import('ws').WebSocket, id: string, roomId: string, username: string, character_color: string, x: number, y: number, facing: string, moving: boolean, lastSeen: number }} ClientState */
+/** @typedef {{ participants: string[], messages: object[], updatedAt: number, nextMsgId: number }} ChatRoom */
+
+const server = createServer((req, res) => {
+  handleHttpRequest(req, res).catch((err) => {
+    console.error('HTTP error:', err.message || err);
+    if (!res.headersSent) sendJson(res, 500, { ok: false, error: 'Erro interno.' });
+  });
 });
 
 const wss = new WebSocketServer({ server, path: WS_PATH });
@@ -170,13 +471,15 @@ wss.on('connection', (ws) => {
           .filter((entry) => entry.id !== userId)
           .map(publicPlayer),
       });
+      send(ws, { type: 'users', users: onlineUsersInRoom(room) });
 
       broadcastRoom(room, userId, { type: 'join', player: publicPlayer(client) });
+      broadcastUsers(room);
       return;
     }
 
     if (!client) {
-      send(ws, { type: 'error', message: 'Envie join antes de move.' });
+      send(ws, { type: 'error', message: 'Envie join antes de outras ações.' });
       return;
     }
 
@@ -201,6 +504,16 @@ wss.on('connection', (ws) => {
         moving: client.moving,
         t: client.lastSeen,
       });
+      return;
+    }
+
+    if (msg.type === 'chat_open') {
+      handleChatOpen(client, msg);
+      return;
+    }
+
+    if (msg.type === 'chat_send') {
+      handleChatSend(client, msg);
     }
   });
 
@@ -210,7 +523,9 @@ wss.on('connection', (ws) => {
 });
 
 setInterval(pruneStaleRooms, 5000);
+setInterval(() => pruneChatRooms(Date.now()), 60000);
 
 server.listen(PORT, () => {
-  console.log(`Presence WS em http://127.0.0.1:${PORT}${WS_PATH}`);
+  console.log(`Auth API em http://127.0.0.1:${PORT}/auth`);
+  console.log(`Realtime WS em http://127.0.0.1:${PORT}${WS_PATH}`);
 });

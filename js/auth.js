@@ -1,9 +1,9 @@
 /**
  * Autenticação — login, cadastro, sessão e proteção de rotas.
- * Backend: webhook n8n (usuários + Telegram + aprovação).
+ * Backend: API Node (api.gepetodigital.com). Aprovação via n8n + Telegram.
  */
 
-import { CONFIG, CHARACTER_COLORS } from './config.js';
+import { CONFIG, CHARACTER_COLORS } from './config.js?v=auth14';
 import {
   apiRegister,
   apiLogin,

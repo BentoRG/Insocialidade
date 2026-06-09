@@ -3,20 +3,15 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=palette8';
+import { CONFIG, resolveAsset } from './config.js?v=auth14';
 import { requireAuth, logout } from './auth.js';
-import {
-  getStoredSession,
-  apiPresenceUpdate,
-  apiPresenceWorld,
-  apiPresenceLeave,
-} from './api.js';
+import { getStoredSession } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas20';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas38';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
-import { createLocalChat } from './local-chat.js?v=chat5';
-import { createRealtimePresence } from './realtime.js?v=rt1';
+import { createLocalChat } from './local-chat.js?v=chat6';
+import { createRealtimePresence } from './realtime.js?v=rt2';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -33,12 +28,6 @@ let engine = null;
 let localChat = null;
 let realtime = null;
 let removeChatTick = null;
-let presencePollTimer = null;
-let presencePollStopped = false;
-let lastN8nPresenceSend = 0;
-let lastN8nX = null;
-let lastN8nY = null;
-let lastN8nFacing = null;
 let removeKeyboardShortcuts = null;
 
 function getToken() {
@@ -160,7 +149,7 @@ function renderUsersList(users = []) {
   if (!users.length) {
     const empty = document.createElement('li');
     empty.className = 'game-users__empty';
-    empty.textContent = 'Nenhuma conta ativa.';
+    empty.textContent = 'Ninguém online agora.';
     usersList.appendChild(empty);
     return;
   }
@@ -188,40 +177,6 @@ function renderUsersList(users = []) {
     }
 
     usersList.appendChild(item);
-  }
-}
-
-function startUsersSync(onUsersUpdate) {
-  const token = getToken();
-  if (!token) return;
-
-  presencePollStopped = false;
-
-  const pollLoop = async () => {
-    if (presencePollStopped) return;
-    const started = performance.now();
-    try {
-      const data = await apiPresenceWorld(token);
-      if (presencePollStopped) return;
-      onUsersUpdate(data.users || []);
-    } catch {
-      // ignora falhas temporárias de rede
-    }
-    if (!presencePollStopped) {
-      const elapsed = performance.now() - started;
-      const delay = Math.max(250, CONFIG.PRESENCE_POLL_MS - elapsed);
-      presencePollTimer = setTimeout(pollLoop, delay);
-    }
-  };
-
-  void pollLoop();
-}
-
-function stopUsersSync() {
-  presencePollStopped = true;
-  if (presencePollTimer) {
-    clearTimeout(presencePollTimer);
-    presencePollTimer = null;
   }
 }
 
@@ -279,21 +234,6 @@ async function init() {
       ? (state) => {
           saveLocalPosition(userKey, { map: mapId, x: state.x, y: state.y, facing: state.facing });
           realtime?.sendMove(state);
-
-          const now = performance.now();
-          const due = now - lastN8nPresenceSend >= CONFIG.PRESENCE_HEARTBEAT_MS;
-          const moved =
-            lastN8nX == null ||
-            Math.abs(state.x - lastN8nX) > 1 ||
-            Math.abs(state.y - lastN8nY) > 1 ||
-            state.facing !== lastN8nFacing;
-          if (due || moved || !state.moving) {
-            lastN8nPresenceSend = now;
-            lastN8nX = state.x;
-            lastN8nY = state.y;
-            lastN8nFacing = state.facing;
-            apiPresenceUpdate(token, { ...state, map: mapId }).catch(() => {});
-          }
         }
       : null,
   });
@@ -304,21 +244,6 @@ async function init() {
   });
   updatePauseButton(engine);
   removeKeyboardShortcuts = setupKeyboardShortcuts(engine);
-
-  realtime = createRealtimePresence({
-    url: CONFIG.REALTIME_WS_URL,
-    token,
-    mapId,
-    profile,
-    spawn,
-    onPlayers: (players) => {
-      engine?.setRemotePlayers(players);
-      localChat?.update();
-    },
-    onStatus: (message) => {
-      if (message) setStatus(message);
-    },
-  });
 
   localChat = createLocalChat({
     nearbyEl: document.getElementById('local-chat-nearby'),
@@ -331,7 +256,34 @@ async function init() {
     getRemotePlayers: () => engine.getRemotePlayers(),
     getTileSize: () => engine.getTileSize(),
     localUserId: profile.id,
-    getToken,
+    getRealtime: () => realtime,
+  });
+
+  realtime = createRealtimePresence({
+    url: CONFIG.REALTIME_WS_URL,
+    token,
+    mapId,
+    profile,
+    spawn,
+    onPlayers: (players) => {
+      engine?.setRemotePlayers(players);
+      localChat?.update();
+    },
+    onUsers: (users) => {
+      renderUsersList(users);
+    },
+    onStatus: (message) => {
+      if (message) setStatus(message);
+    },
+    onChatOpened: (msg) => {
+      localChat?.handleChatOpened(msg);
+    },
+    onChatMessage: (msg) => {
+      localChat?.handleChatMessage(msg);
+    },
+    onChatError: (error) => {
+      localChat?.handleChatError(error);
+    },
   });
 
   removeChatTick = engine.addTickListener(() => localChat?.update());
@@ -342,26 +294,12 @@ async function init() {
   setStatus('WASD ou setas para mover');
   gameCanvas.focus();
 
-  startUsersSync((users) => {
-    renderUsersList(users);
-  });
-
   window.addEventListener('beforeunload', () => {
     removeKeyboardShortcuts?.();
-    stopUsersSync();
     realtime?.destroy();
     removeChatTick?.();
     localChat?.destroy();
     engine?.destroy();
-    if (token) {
-      navigator.sendBeacon(
-        CONFIG.API_URL,
-        new Blob(
-          [JSON.stringify({ action: 'presence_leave', token })],
-          { type: 'application/json' }
-        )
-      );
-    }
   });
 }
 

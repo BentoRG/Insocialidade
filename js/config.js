@@ -1,18 +1,19 @@
 /**
  * CONFIGURAÇÃO — Insocialidade
  * =============================
- * Backend de auth via webhook n8n (n8n.timgo.uk).
- * Telegram e armazenamento de usuários ficam no servidor — nada sensível no front-end.
+ * Auth e cadastro via api.gepetodigital.com (Node).
+ * Aprovação de novos cadastros via n8n + Telegram (n8n.gepetodigital.com).
+ * Tempo real (presença, chat) via WebSocket em ws.gepetodigital.com.
  */
 
 /** Incrementar ao publicar mapa/paleta — força download de TMJ, PNG e JS. */
 export const ASSET_VERSION = 'palette8';
 
 export const CONFIG = {
-  // URL do webhook n8n (workflow "Insocialidade Auth")
-  API_URL: 'https://n8n.timgo.uk/webhook/insocialidade-auth',
+  // URL da API de auth (gepetodigital.com quando DNS propagar; timgo.uk ativo agora)
+  API_URL: 'https://api-insocialidade.timgo.uk/auth',
 
-  // Chave usada para assinar tokens de sessão (mesmo valor no workflow n8n)
+  // Chave usada para assinar tokens de sessão (mesmo valor no servidor)
   SESSION_SECRET: 'insocialidade-session-v1',
 
   // Segredo nos links de aprovação/rejeição enviados ao Telegram
@@ -30,11 +31,7 @@ export const CONFIG = {
   SESSION_KEY: 'insocialidade_session',
   PENDING_USER_KEY: 'insocialidade_pending_user',
   STATUS_POLL_MS: 5000,
-  PRESENCE_POLL_MS: 8000,
-  PRESENCE_HEARTBEAT_MS: 2000,
-  PRESENCE_STALE_MS: 15000,
-  REALTIME_WS_URL: 'wss://n8n.timgo.uk/ws/presence',
-  LOCAL_CHAT_POLL_MS: 350,
+  REALTIME_WS_URL: 'wss://ws-insocialidade.timgo.uk/ws',
   MAP_URL: 'assets/maps/starter.tmj',
 };
 

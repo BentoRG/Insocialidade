@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Instala e inicia o servidor WebSocket de presença (pm2).
- * Também atualiza o túnel Cloudflare n8n para expor /ws/presence.
+ * Instala e inicia o servidor Insocialidade (auth + WebSocket) via pm2.
+ * Configura rotas no túnel Cloudflare gepetodigital.com:
+ *   api.gepetodigital.com  → auth HTTP
+ *   ws.gepetodigital.com   → WebSocket /ws
+ *   n8n.gepetodigital.com  → n8n local (aprovação Telegram)
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -12,48 +15,92 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const SERVER_DIR = resolve(ROOT, 'server');
-const TUNNEL_FILE = process.env.N8N_TUNNEL_CONFIG || '/home/tim/.cloudflared/n8n-tunnel.yml';
+const TUNNEL_FILE =
+  process.env.GEPETO_TUNNEL_CONFIG || '/home/tim/.cloudflared/gepeto-tunnel.yml';
 const WS_PORT = process.env.PRESENCE_WS_PORT || '8787';
+const WS_PATH = process.env.PRESENCE_WS_PATH || '/ws';
+const N8N_PORT = process.env.N8N_PORT || '5678';
 const PM2_NAME = 'insocialidade-presence';
+const TUNNEL_PM2_NAME = 'gepeto-tunnel';
+const TUNNEL_ID = 'fc3b3dfb-4641-4cdd-b3d4-c03ca64187ae';
+
+const ROUTES = [
+  {
+    hostname: 'api.gepetodigital.com',
+    service: `http://localhost:${WS_PORT}`,
+  },
+  {
+    hostname: 'ws.gepetodigital.com',
+    path: `${WS_PATH}*`,
+    service: `http://localhost:${WS_PORT}`,
+  },
+  {
+    hostname: 'n8n.gepetodigital.com',
+    service: `http://localhost:${N8N_PORT}`,
+  },
+];
 
 function run(cmd, cwd = ROOT) {
   execSync(cmd, { cwd, stdio: 'inherit' });
 }
 
-function ensureTunnelRoute() {
+function runQuiet(cmd) {
+  try {
+    execSync(cmd, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function routeBlock(route) {
+  const lines = [`  - hostname: ${route.hostname}`];
+  if (route.path) lines.push(`    path: ${route.path}`);
+  lines.push(`    service: ${route.service}`);
+  return lines;
+}
+
+function ensureTunnelRoutes() {
   if (!existsSync(TUNNEL_FILE)) {
-    console.warn(`Túnel não encontrado em ${TUNNEL_FILE} — configure manualmente.`);
-    return;
+    console.warn(`Túnel não encontrado em ${TUNNEL_FILE}`);
+    console.warn('Crie o arquivo com ingress para gepetodigital.com (veja .env.example).');
+    return false;
   }
 
   const raw = readFileSync(TUNNEL_FILE, 'utf8');
-  if (raw.includes('/ws/presence')) {
-    console.log('Rota /ws/presence já existe no túnel.');
-    return;
+  const missing = ROUTES.filter((route) => !raw.includes(`hostname: ${route.hostname}`));
+
+  if (missing.length === 0) {
+    console.log('Rotas do túnel gepeto já configuradas.');
+    return false;
   }
 
   const lines = raw.split('\n');
-  const ingressIdx = lines.findIndex((line) => line.trim() === 'ingress:');
-  if (ingressIdx === -1) {
-    console.warn('ingress: não encontrado no túnel — configure manualmente.');
-    return;
-  }
-
-  const insertAt = ingressIdx + 1;
-  lines.splice(
-    insertAt,
-    0,
-    '  - hostname: n8n.timgo.uk',
-    '    path: /ws/presence*',
-    `    service: http://localhost:${WS_PORT}`
+  const catchAllIdx = lines.findIndex(
+    (line) => line.trim() === '- service: http_status:404'
   );
-  writeFileSync(TUNNEL_FILE, lines.join('\n'));
-  console.log('Rota /ws/presence adicionada ao túnel Cloudflare.');
+  const insertAt = catchAllIdx >= 0 ? catchAllIdx : lines.length;
 
-  try {
-    run('pm2 restart n8n-tunnel');
-  } catch {
-    console.warn('Reinicie o túnel manualmente: pm2 restart n8n-tunnel');
+  const newBlocks = missing.flatMap((route) => routeBlock(route));
+  lines.splice(insertAt, 0, ...newBlocks);
+  writeFileSync(TUNNEL_FILE, lines.join('\n'));
+  console.log('Rotas adicionadas ao túnel:', missing.map((r) => r.hostname).join(', '));
+  return true;
+}
+
+function ensureDnsRecords() {
+  for (const route of ROUTES) {
+    const hostname = route.hostname;
+    const ok = runQuiet(
+      `cloudflared tunnel route dns ${TUNNEL_ID} ${hostname}`
+    );
+    if (ok) {
+      console.log(`DNS: ${hostname}`);
+    } else {
+      console.warn(
+        `DNS ${hostname}: configure manualmente (CNAME → ${TUNNEL_ID}.cfargotunnel.com) se necessário.`
+      );
+    }
   }
 }
 
@@ -78,12 +125,23 @@ function main() {
   }
 
   run('pm2 save');
-  ensureTunnelRoute();
+
+  const tunnelChanged = ensureTunnelRoutes();
+  ensureDnsRecords();
+
+  if (tunnelChanged) {
+    try {
+      run(`pm2 restart ${TUNNEL_PM2_NAME}`);
+    } catch {
+      console.warn(`Reinicie o túnel manualmente: pm2 restart ${TUNNEL_PM2_NAME}`);
+    }
+  }
 
   console.log('');
-  console.log('Presence WS ativo.');
-  console.log(`Local:  ws://127.0.0.1:${WS_PORT}/ws/presence`);
-  console.log('Public: wss://n8n.timgo.uk/ws/presence');
+  console.log('Servidor Insocialidade ativo.');
+  console.log(`Auth:     https://api.gepetodigital.com/auth`);
+  console.log(`Realtime: wss://ws.gepetodigital.com${WS_PATH}`);
+  console.log(`n8n:      https://n8n.gepetodigital.com`);
 }
 
 main();

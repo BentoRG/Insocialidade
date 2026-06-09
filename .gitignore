@@ -5,3 +5,6 @@ node_modules/
 .env
 .env.local
 .env.*.local
+
+# Dados de usuários (auth-store)
+server/data/users.json

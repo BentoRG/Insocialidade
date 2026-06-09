@@ -1,8 +1,8 @@
 /**
- * Cliente HTTP para o backend n8n (Insocialidade Auth).
+ * Cliente HTTP para a API de auth (api.gepetodigital.com).
  */
 
-import { CONFIG } from './config.js';
+import { CONFIG } from './config.js?v=auth14';
 
 async function apiRequest(action, payload = {}) {
   const response = await fetch(CONFIG.API_URL, {
@@ -61,28 +61,4 @@ export async function apiValidateSession(token) {
 
 export async function apiCheckStatus(username) {
   return apiRequest('status', { username });
-}
-
-export async function apiPresenceUpdate(token, { x, y, facing, map }) {
-  return apiRequest('presence_update', { token, x, y, facing, map });
-}
-
-export async function apiPresenceWorld(token) {
-  return apiRequest('presence_world', { token });
-}
-
-export async function apiPresenceLeave(token) {
-  return apiRequest('presence_leave', { token });
-}
-
-export async function apiLocalChatOpen(token, { peerId, x, y, tileWidth, tileHeight }) {
-  return apiRequest('local_chat_open', { token, peerId, x, y, tileWidth, tileHeight });
-}
-
-export async function apiLocalChatSend(token, { peerId, text, x, y, tileWidth, tileHeight }) {
-  return apiRequest('local_chat_send', { token, peerId, text, x, y, tileWidth, tileHeight });
-}
-
-export async function apiLocalChatPoll(token, { peerId, after, x, y, tileWidth, tileHeight }) {
-  return apiRequest('local_chat_poll', { token, peerId, after, x, y, tileWidth, tileHeight });
 }

@@ -2,9 +2,7 @@
  * Chat local — abre automaticamente a até 2 tiles de outro jogador.
  */
 
-import { CONFIG } from './config.js';
 import { findNearbyPlayers, pickClosestPlayer } from './proximity.js';
-import { apiLocalChatOpen, apiLocalChatSend, apiLocalChatPoll } from './api.js';
 
 export function createLocalChat({
   nearbyEl,
@@ -17,12 +15,10 @@ export function createLocalChat({
   getRemotePlayers,
   getTileSize,
   localUserId,
-  getToken,
+  getRealtime,
 }) {
   let activePeer = null;
   let lastMessageId = 0;
-  let pollTimer = null;
-  let pollStopped = false;
   let openingPeerId = null;
   let idleHint = '';
   const dismissedPeerIds = new Set();
@@ -158,52 +154,6 @@ export function createLocalChat({
     renderIdle();
   }
 
-  function stopPoll() {
-    pollStopped = true;
-    if (pollTimer) {
-      clearTimeout(pollTimer);
-      pollTimer = null;
-    }
-  }
-
-  async function pollMessages() {
-    if (pollStopped || !activePeer) return;
-
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      const data = await apiLocalChatPoll(token, {
-        peerId: activePeer.id,
-        after: lastMessageId,
-        ...positionPayload(),
-      });
-
-      if (data.peer?.username && peerNameEl) {
-        peerNameEl.textContent = data.peer.username;
-        activePeer.username = data.peer.username;
-      }
-
-      ingestMessages(data.messages, data.peer?.username);
-    } catch (err) {
-      if (String(err.message || err).includes('fora_de_alcance')) {
-        appendSystem('Você se afastou — chat encerrado.');
-        closeChat();
-        return;
-      }
-    }
-
-    if (!pollStopped && activePeer) {
-      pollTimer = setTimeout(pollMessages, CONFIG.LOCAL_CHAT_POLL_MS);
-    }
-  }
-
-  function startPoll() {
-    stopPoll();
-    pollStopped = false;
-    void pollMessages();
-  }
-
   function appendSystem(text) {
     if (!messagesEl) return;
     const row = document.createElement('p');
@@ -213,10 +163,9 @@ export function createLocalChat({
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  async function openChat(player) {
+  function openChat(player) {
     const peerId = peerIdKey(player.id);
-    const token = getToken();
-    if (!token || openingPeerId === peerId) return;
+    if (openingPeerId === peerId) return;
     if (activePeer && peerIdKey(activePeer.id) === peerId) return;
 
     openingPeerId = peerId;
@@ -227,62 +176,28 @@ export function createLocalChat({
       color: player.color || player.character_color,
     });
 
-    try {
-      const data = await apiLocalChatOpen(token, {
-        peerId,
-        ...positionPayload(),
-      });
-      showActive({
-        id: data.peer.id,
-        username: data.peer.username,
-        color: data.peer.character_color,
-      });
-      ingestMessages(data.messages, data.peer.username);
-      startPoll();
-    } catch (err) {
-      dismissedPeerIds.add(peerId);
-      closeChat();
-      showIdleHint(err.message || 'Não foi possível abrir o chat.');
-    } finally {
-      openingPeerId = null;
-    }
+    getRealtime()?.openChat({ peerId, ...positionPayload() });
   }
 
   function closeChat() {
-    stopPoll();
     hideActive();
   }
 
-  async function sendMessage(text) {
+  function sendMessage(text) {
     if (!activePeer) return;
     if (!isPeerInRange()) {
       appendSystem('Aproxime-se do jogador para enviar.');
       return;
     }
 
-    const token = getToken();
-    if (!token) return;
-
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    try {
-      const data = await apiLocalChatSend(token, {
-        peerId: activePeer.id,
-        text: trimmed,
-        ...positionPayload(),
-      });
-      if (data.message?.id) {
-        ingestMessages([data.message], activePeer.username);
-      }
-    } catch (err) {
-      if (String(err.message || err).includes('fora_de_alcance')) {
-        appendSystem('Você se afastou — chat encerrado.');
-        closeChat();
-        return;
-      }
-      appendSystem(err.message || 'Falha ao enviar.');
-    }
+    getRealtime()?.sendChat({
+      peerId: activePeer.id,
+      text: trimmed,
+      ...positionPayload(),
+    });
   }
 
   function syncProximity() {
@@ -312,7 +227,7 @@ export function createLocalChat({
       (player) => !dismissedPeerIds.has(peerIdKey(player.id))
     );
     const closest = pickClosestPlayer(local, candidates);
-    if (closest) void openChat(closest);
+    if (closest) openChat(closest);
     else renderIdle();
   }
 
@@ -320,7 +235,7 @@ export function createLocalChat({
     event.preventDefault();
     const text = inputEl?.value || '';
     if (inputEl) inputEl.value = '';
-    void sendMessage(text);
+    sendMessage(text);
   });
 
   setSendEnabled(false);
@@ -329,8 +244,43 @@ export function createLocalChat({
     update() {
       syncProximity();
     },
+    handleChatOpened(msg) {
+      openingPeerId = null;
+      if (!msg?.peer) {
+        dismissedPeerIds.add(peerIdKey(activePeer?.id));
+        closeChat();
+        showIdleHint('Não foi possível abrir o chat.');
+        return;
+      }
+
+      showActive({
+        id: msg.peer.id,
+        username: msg.peer.username,
+        color: msg.peer.character_color,
+      });
+      ingestMessages(msg.messages, msg.peer.username);
+    },
+    handleChatMessage(msg) {
+      if (!activePeer || peerIdKey(msg.peerId) !== peerIdKey(activePeer.id)) return;
+      ingestMessages([msg.message], activePeer.username);
+    },
+    handleChatError(error) {
+      openingPeerId = null;
+      if (String(error).includes('fora_de_alcance')) {
+        if (activePeer) {
+          appendSystem('Você se afastou — chat encerrado.');
+          closeChat();
+        }
+        return;
+      }
+
+      if (activePeer) {
+        dismissedPeerIds.add(peerIdKey(activePeer.id));
+        closeChat();
+      }
+      showIdleHint(error || 'Erro no chat.');
+    },
     destroy() {
-      stopPoll();
       closeChat();
     },
   };
