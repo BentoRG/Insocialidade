@@ -1,8 +1,8 @@
 /**
- * Chat local — abre automaticamente a até 2 tiles de outro jogador.
+ * Chat local — conversa por aceite mútuo a até 2 tiles de outro jogador.
  */
 
-import { findNearbyPlayers, pickClosestPlayer } from './proximity.js';
+import { findNearbyPlayers } from './proximity.js';
 
 export function createLocalChat({
   nearbyEl,
@@ -21,6 +21,8 @@ export function createLocalChat({
   let lastMessageId = 0;
   let openingPeerId = null;
   let idleHint = '';
+  let activePeerOutOfRange = false;
+  const pendingPeerIds = new Set();
   const dismissedPeerIds = new Set();
   const seenMessageIds = new Set();
   const submitBtn = formEl?.querySelector('button[type="submit"]');
@@ -78,6 +80,35 @@ export function createLocalChat({
     nearbyEl.appendChild(hint);
   }
 
+  function renderNearbyPrompts(players) {
+    if (!nearbyEl || activePeer) return;
+    nearbyEl.replaceChildren();
+    delete nearbyEl.dataset.idleHint;
+
+    for (const player of players) {
+      const peerId = peerIdKey(player.id);
+      const pending = pendingPeerIds.has(peerId);
+      const row = document.createElement('div');
+      row.className =
+        'game-local-chat__prompt' +
+        (pending ? ' game-local-chat__prompt--pending' : '');
+
+      const name = document.createElement('span');
+      name.className = 'game-local-chat__prompt-name';
+      name.textContent = player.username || 'Jogador';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn--sm game-local-chat__start';
+      button.disabled = pending;
+      button.textContent = pending ? 'Aguardando aceite...' : 'Conversar';
+      button.addEventListener('click', () => requestChat(player));
+
+      row.append(name, button);
+      nearbyEl.appendChild(row);
+    }
+  }
+
   function showIdleHint(text) {
     idleHint = text;
     renderIdle();
@@ -129,6 +160,8 @@ export function createLocalChat({
   function showActive(peer) {
     activePeer = peer;
     idleHint = '';
+    activePeerOutOfRange = false;
+    pendingPeerIds.delete(peerIdKey(peer.id));
     seenMessageIds.clear();
     lastMessageId = 0;
     if (nearbyEl) {
@@ -145,6 +178,7 @@ export function createLocalChat({
 
   function hideActive() {
     activePeer = null;
+    activePeerOutOfRange = false;
     lastMessageId = 0;
     seenMessageIds.clear();
     setSendEnabled(false);
@@ -163,20 +197,31 @@ export function createLocalChat({
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function openChat(player) {
+  function requestChat(player) {
     const peerId = peerIdKey(player.id);
-    if (openingPeerId === peerId) return;
+    if (pendingPeerIds.has(peerId)) return;
     if (activePeer && peerIdKey(activePeer.id) === peerId) return;
 
     openingPeerId = peerId;
-
-    showActive({
-      id: player.id,
-      username: player.username || 'Jogador',
-      color: player.color || player.character_color,
-    });
+    pendingPeerIds.add(peerId);
 
     getRealtime()?.openChat({ peerId, ...positionPayload() });
+  }
+
+  function resolvePeer(peerId, peer = null) {
+    const remote = getRemotePlayers().find(
+      (player) => peerIdKey(player.id) === peerIdKey(peerId)
+    );
+
+    return {
+      id: peer?.id || remote?.id || peerId,
+      username: peer?.username || remote?.username || 'Jogador',
+      color:
+        peer?.character_color ||
+        peer?.color ||
+        remote?.character_color ||
+        remote?.color,
+    };
   }
 
   function closeChat() {
@@ -207,6 +252,10 @@ export function createLocalChat({
     const nearby = findNearbyPlayers(local, remotes, tileWidth, tileHeight);
     const nearbyIds = new Set(nearby.map((player) => peerIdKey(player.id)));
 
+    for (const id of pendingPeerIds) {
+      if (!nearbyIds.has(id)) pendingPeerIds.delete(id);
+    }
+
     for (const id of dismissedPeerIds) {
       if (!nearbyIds.has(id)) dismissedPeerIds.delete(id);
     }
@@ -215,19 +264,20 @@ export function createLocalChat({
       const inRange = nearbyIds.has(peerIdKey(activePeer.id));
       setSendEnabled(inRange);
       if (!inRange) {
-        appendSystem('Você se afastou — chat encerrado.');
-        closeChat();
+        if (!activePeerOutOfRange) {
+          appendSystem('Você se afastou — aproxime-se para responder.');
+        }
+        activePeerOutOfRange = true;
+      } else {
+        activePeerOutOfRange = false;
       }
       return;
     }
 
-    if (openingPeerId) return;
-
     const candidates = nearby.filter(
       (player) => !dismissedPeerIds.has(peerIdKey(player.id))
     );
-    const closest = pickClosestPlayer(local, candidates);
-    if (closest) openChat(closest);
+    if (candidates.length) renderNearbyPrompts(candidates);
     else renderIdle();
   }
 
@@ -258,18 +308,32 @@ export function createLocalChat({
         username: msg.peer.username,
         color: msg.peer.character_color,
       });
+      pendingPeerIds.delete(peerIdKey(msg.peer.id));
       ingestMessages(msg.messages, msg.peer.username);
     },
     handleChatMessage(msg) {
-      if (!activePeer || peerIdKey(msg.peerId) !== peerIdKey(activePeer.id)) return;
+      const peerId = peerIdKey(msg.peerId);
+      if (!peerId) return;
+
+      if (peerIdKey(activePeer?.id) !== peerId) {
+        openingPeerId = null;
+        pendingPeerIds.delete(peerId);
+        dismissedPeerIds.delete(peerId);
+        showActive(resolvePeer(peerId, msg.peer));
+      }
+
       ingestMessages([msg.message], activePeer.username);
     },
     handleChatError(error) {
       openingPeerId = null;
+      pendingPeerIds.clear();
       if (String(error).includes('fora_de_alcance')) {
         if (activePeer) {
-          appendSystem('Você se afastou — chat encerrado.');
-          closeChat();
+          setSendEnabled(false);
+          if (!activePeerOutOfRange) {
+            appendSystem('Você se afastou — aproxime-se para responder.');
+          }
+          activePeerOutOfRange = true;
         }
         return;
       }

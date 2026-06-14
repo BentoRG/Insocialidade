@@ -9,6 +9,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { createAuthStore } from './auth-store.js';
+import { createTelegramApprovalHandler } from './telegram-approval.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -34,12 +35,22 @@ const APPROVAL_SECRET = process.env.APPROVAL_SECRET || 'insocialidade-approve-20
 const N8N_APPROVAL_WEBHOOK_URL =
   process.env.N8N_APPROVAL_WEBHOOK_URL ||
   'http://127.0.0.1:5678/webhook/insocialidade-approval-notify';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '8670179404';
 const WS_PATH = process.env.PRESENCE_WS_PATH || '/ws';
 const authStore = createAuthStore({ sessionSecret: SESSION_SECRET });
+const handleTelegramUpdate = TELEGRAM_BOT_TOKEN
+  ? createTelegramApprovalHandler({
+      botToken: TELEGRAM_BOT_TOKEN,
+      adminChatId: TELEGRAM_ADMIN_CHAT_ID,
+      moderateUser: (payload) => authStore.moderateUser(payload),
+    })
+  : null;
 const STALE_MS = Number(process.env.PRESENCE_STALE_MS || 15000);
 const CHAT_TILE_RADIUS = 2;
 const CHAT_MAX_TEXT = 500;
 const CHAT_ROOM_STALE_MS = 30 * 60 * 1000;
+const CHAT_REQUEST_STALE_MS = 60 * 1000;
 const CHAT_MAX_MESSAGES = 200;
 const DEFAULT_TILE = 16;
 
@@ -48,6 +59,9 @@ const rooms = new Map();
 
 /** @type {Map<string, ChatRoom>} */
 const chatRooms = new Map();
+
+/** @type {Map<string, ChatRequest>} */
+const pendingChatRequests = new Map();
 
 function verifyToken(token) {
   return authStore.verifyToken(token);
@@ -172,10 +186,36 @@ async function handleModerateRoute(req, res) {
   sendJson(res, result.ok ? 200 : 404, result);
 }
 
+async function handleTelegramRoute(req, res) {
+  if (!handleTelegramUpdate) {
+    sendJson(res, 503, { ok: false, error: 'Telegram não configurado.' });
+    return;
+  }
+
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { ok: false, error: 'Corpo inválido.' });
+    return;
+  }
+
+  try {
+    const result = await handleTelegramUpdate(body);
+    sendJson(res, 200, result);
+  } catch (err) {
+    console.error('Telegram webhook:', err.message || err);
+    sendJson(res, 500, { ok: false, error: 'Erro interno.' });
+  }
+}
+
 async function handleHttpRequest(req, res) {
   setCorsHeaders(req, res);
 
-  if (req.method === 'OPTIONS' && (req.url === '/auth' || req.url === '/auth/moderate')) {
+  if (
+    req.method === 'OPTIONS' &&
+    (req.url === '/auth' || req.url === '/auth/moderate' || req.url === '/auth/telegram')
+  ) {
     res.writeHead(204);
     res.end();
     return;
@@ -188,6 +228,11 @@ async function handleHttpRequest(req, res) {
 
   if (req.method === 'POST' && req.url === '/auth/moderate') {
     await handleModerateRoute(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/auth/telegram') {
+    await handleTelegramRoute(req, res);
     return;
   }
 
@@ -285,6 +330,26 @@ function pruneChatRooms(now) {
   }
 }
 
+function pruneChatRequests(now) {
+  for (const [requestId, request] of pendingChatRequests.entries()) {
+    if (now - (request.updatedAt || 0) > CHAT_REQUEST_STALE_MS) {
+      pendingChatRequests.delete(requestId);
+    }
+  }
+}
+
+function pruneClientChatRequests(client) {
+  for (const [requestId, request] of pendingChatRequests.entries()) {
+    if (!request.participants.includes(client.id)) continue;
+
+    const peerId = request.participants.find((id) => id !== client.id);
+    const peer = peerId ? findClientById(peerId) : null;
+    if (!peer || peer.roomId !== client.roomId || !areClientsNearby(client, peer)) {
+      pendingChatRequests.delete(requestId);
+    }
+  }
+}
+
 function tilesApart(ax, ay, bx, by, tileW, tileH) {
   const ac = Math.floor(ax / tileW);
   const ar = Math.floor(ay / tileH);
@@ -306,6 +371,16 @@ function areClientsNearby(self, peer, tileW = DEFAULT_TILE, tileH = DEFAULT_TILE
   return tilesApart(self.x, self.y, peer.x, peer.y, tileW, tileH) <= CHAT_TILE_RADIUS;
 }
 
+function syncClientPosition(client, msg) {
+  const x = Number(msg.x);
+  const y = Number(msg.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+  client.x = x;
+  client.y = y;
+  client.lastSeen = Date.now();
+}
+
 function getOrCreateChatRoom(userId, peerId, now) {
   const roomId = chatRoomId(userId, peerId);
   if (!chatRooms.has(roomId)) {
@@ -323,39 +398,7 @@ function sendChatError(ws, error) {
   send(ws, { type: 'chat_error', error });
 }
 
-function deliverChatMessage(userId, peerId, message) {
-  const self = findClientById(userId);
-  const peer = findClientById(peerId);
-  const payload = { type: 'chat_message', peerId, message };
-  if (self) send(self.ws, payload);
-  if (peer) send(peer.ws, payload);
-}
-
-function handleChatOpen(client, msg) {
-  const peerId = String(msg.peerId || '').trim();
-  const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
-  const tileH = Number(msg.tileHeight) || DEFAULT_TILE;
-
-  if (!peerId || peerId === client.id) {
-    sendChatError(client.ws, 'Jogador inválido.');
-    return;
-  }
-
-  const peer = findClientById(peerId);
-  if (!peer) {
-    sendChatError(client.ws, 'Jogador offline.');
-    return;
-  }
-
-  if (!areClientsNearby(client, peer, tileW, tileH)) {
-    sendChatError(client.ws, 'Aproxime-se do jogador (até 2 tiles).');
-    return;
-  }
-
-  const now = Date.now();
-  pruneChatRooms(now);
-  const room = getOrCreateChatRoom(client.id, peerId, now);
-
+function sendChatOpened(client, peer, messages) {
   send(client.ws, {
     type: 'chat_opened',
     peer: {
@@ -363,8 +406,81 @@ function handleChatOpen(client, msg) {
       username: peer.username,
       character_color: peer.character_color,
     },
-    messages: room.messages,
+    messages,
   });
+}
+
+function deliverChatMessage(userId, peerId, message) {
+  const self = findClientById(userId);
+  const peer = findClientById(peerId);
+  if (self) {
+    send(self.ws, {
+      type: 'chat_message',
+      peerId,
+      peer: peer ? publicPlayer(peer) : null,
+      message,
+    });
+  }
+  if (peer) {
+    send(peer.ws, {
+      type: 'chat_message',
+      peerId: userId,
+      peer: self ? publicPlayer(self) : null,
+      message,
+    });
+  }
+}
+
+function handleChatRequest(client, msg) {
+  const peerId = String(msg.peerId || '').trim();
+  const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
+  const tileH = Number(msg.tileHeight) || DEFAULT_TILE;
+  syncClientPosition(client, msg);
+
+  if (!peerId || peerId === client.id) {
+    sendChatError(client.ws, 'Jogador inválido.');
+    return;
+  }
+
+  const peer = findClientById(peerId);
+  if (!peer || peer.roomId !== client.roomId) {
+    sendChatError(client.ws, 'Jogador offline.');
+    return;
+  }
+
+  if (!areClientsNearby(client, peer, tileW, tileH)) {
+    pendingChatRequests.delete(chatRoomId(client.id, peerId));
+    sendChatError(client.ws, 'Aproxime-se do jogador (até 2 tiles).');
+    return;
+  }
+
+  const now = Date.now();
+  pruneChatRequests(now);
+  pruneChatRooms(now);
+  const requestId = chatRoomId(client.id, peerId);
+  const request = pendingChatRequests.get(requestId) || {
+    participants: [client.id, peerId].sort(),
+    requestedBy: new Set(),
+    updatedAt: now,
+  };
+
+  request.requestedBy.add(client.id);
+  request.updatedAt = now;
+  pendingChatRequests.set(requestId, request);
+
+  if (!request.requestedBy.has(peerId)) {
+    send(client.ws, {
+      type: 'chat_pending',
+      peerId,
+      peer: publicPlayer(peer),
+    });
+    return;
+  }
+
+  pendingChatRequests.delete(requestId);
+  const room = getOrCreateChatRoom(client.id, peerId, now);
+  sendChatOpened(client, peer, room.messages);
+  sendChatOpened(peer, client, room.messages);
 }
 
 function handleChatSend(client, msg) {
@@ -372,6 +488,7 @@ function handleChatSend(client, msg) {
   const text = String(msg.text || '').trim();
   const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
   const tileH = Number(msg.tileHeight) || DEFAULT_TILE;
+  syncClientPosition(client, msg);
 
   if (!peerId || peerId === client.id) {
     sendChatError(client.ws, 'Jogador inválido.');
@@ -410,6 +527,7 @@ function handleChatSend(client, msg) {
 
 /** @typedef {{ ws: import('ws').WebSocket, id: string, roomId: string, username: string, character_color: string, x: number, y: number, facing: string, moving: boolean, lastSeen: number }} ClientState */
 /** @typedef {{ participants: string[], messages: object[], updatedAt: number, nextMsgId: number }} ChatRoom */
+/** @typedef {{ participants: string[], requestedBy: Set<string>, updatedAt: number }} ChatRequest */
 
 const server = createServer((req, res) => {
   handleHttpRequest(req, res).catch((err) => {
@@ -493,6 +611,7 @@ wss.on('connection', (ws) => {
       client.facing = String(msg.facing || client.facing);
       client.moving = Boolean(msg.moving);
       client.lastSeen = Date.now();
+      pruneClientChatRequests(client);
 
       const room = getRoom(client.roomId);
       broadcastRoom(room, client.id, {
@@ -507,8 +626,8 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    if (msg.type === 'chat_open') {
-      handleChatOpen(client, msg);
+    if (msg.type === 'chat_request' || msg.type === 'chat_open') {
+      handleChatRequest(client, msg);
       return;
     }
 
@@ -524,8 +643,10 @@ wss.on('connection', (ws) => {
 
 setInterval(pruneStaleRooms, 5000);
 setInterval(() => pruneChatRooms(Date.now()), 60000);
+setInterval(() => pruneChatRequests(Date.now()), 30000);
 
 server.listen(PORT, () => {
   console.log(`Auth API em http://127.0.0.1:${PORT}/auth`);
+  console.log(`Telegram webhook em http://127.0.0.1:${PORT}/auth/telegram`);
   console.log(`Realtime WS em http://127.0.0.1:${PORT}${WS_PATH}`);
 });

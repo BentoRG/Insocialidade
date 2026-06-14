@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 /**
  * Deploy do workflow "Insocialidade Approval" no n8n.
- * Apenas notificação Telegram e callbacks de aprovação/rejeição.
+ * Só dispara quando alguém tenta criar conta nova (envia Telegram).
  *
- * Requer .env na raiz do projeto (não commitado) com:
- *   N8N_API_KEY=...
- *   TELEGRAM_BOT_TOKEN=...
- *   TELEGRAM_ADMIN_CHAT_ID=8670179404
- *   AUTH_MODERATE_URL=https://api.gepetodigital.com/auth/moderate
- *   APPROVAL_SECRET=...
+ * Aprovar/rejeitar no Telegram é tratado pelo servidor Node (/auth/telegram).
+ *
+ * Requer .env com N8N_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_CHAT_ID
  */
 
 const fs = require('fs');
@@ -31,15 +28,10 @@ function loadEnvFile() {
 loadEnvFile();
 
 const N8N_API_BASE = process.env.N8N_API_URL || process.env.N8N_BASE_URL || 'https://n8n.timgo.uk';
-const N8N_PUBLIC_BASE = process.env.N8N_PUBLIC_URL || 'https://n8n.gepetodigital.com';
 const N8N_API_KEY = process.env.N8N_API_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '8670179404';
 const TELEGRAM_BOT_ID = process.env.TELEGRAM_BOT_ID || '8773138632';
-const APPROVAL_SECRET = process.env.APPROVAL_SECRET || 'insocialidade-approve-2026';
-const AUTH_MODERATE_URL =
-  process.env.AUTH_MODERATE_URL || 'http://127.0.0.1:8787/auth/moderate';
-const TELEGRAM_WEBHOOK_URL = `${N8N_PUBLIC_BASE}/webhook/insocialidade-telegram`;
 const OLD_WORKFLOW_NAME = 'Insocialidade Auth';
 const WORKFLOW_NAME = 'Insocialidade Approval';
 
@@ -120,146 +112,6 @@ await telegramApi.call(this, 'sendMessage', {
 return [{ json: { ok: true } }];
 `.trim();
 
-const TELEGRAM_CODE = `
-const TELEGRAM_BOT_TOKEN = ${JSON.stringify(TELEGRAM_BOT_TOKEN)};
-const TELEGRAM_CHAT_ID = ${JSON.stringify(TELEGRAM_CHAT_ID)};
-const APPROVAL_SECRET = ${JSON.stringify(APPROVAL_SECRET)};
-const AUTH_MODERATE_URL = ${JSON.stringify(AUTH_MODERATE_URL)};
-
-const COLOR_LABELS = ${JSON.stringify(COLOR_LABELS)};
-
-function normalizeCharacterColor(hex) {
-  const value = String(hex || '').trim().toLowerCase();
-  return value.startsWith('#') ? value : '#' + value;
-}
-
-function colorLabel(hex) {
-  return COLOR_LABELS[normalizeCharacterColor(hex)] || hex;
-}
-
-async function telegramApi(method, body) {
-  return this.helpers.httpRequest({
-    method: 'POST',
-    url: 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/' + method,
-    body,
-    json: true,
-  });
-}
-
-async function answerCallback(cq, text = '', showAlert = false) {
-  if (!cq?.id) return;
-  try {
-    await telegramApi.call(this, 'answerCallbackQuery', {
-      callback_query_id: cq.id,
-      text,
-      show_alert: showAlert,
-    });
-  } catch (err) {}
-}
-
-async function clearMessageButtons(cq) {
-  if (!cq?.message?.chat?.id || !cq?.message?.message_id) return;
-  try {
-    await telegramApi.call(this, 'editMessageReplyMarkup', {
-      chat_id: cq.message.chat.id,
-      message_id: cq.message.message_id,
-      reply_markup: { inline_keyboard: [] },
-    });
-  } catch (err) {}
-}
-
-function parseTelegramUpdate(rawInput) {
-  let update = rawInput?.body ?? rawInput;
-  if (typeof update === 'string') {
-    try {
-      update = JSON.parse(update);
-    } catch {
-      update = {};
-    }
-  }
-  return update && typeof update === 'object' ? update : {};
-}
-
-const input = $input.first().json;
-const update = parseTelegramUpdate(input);
-const cq = update.callback_query;
-
-if (!cq) {
-  return [];
-}
-
-const adminId = String(TELEGRAM_CHAT_ID);
-const fromId = String(cq.from?.id ?? '');
-
-if (fromId !== adminId) {
-  await answerCallback.call(this, cq, 'Você não tem permissão para isso.', true);
-  return [];
-}
-
-const raw = String(cq.data || '');
-const sep = raw.indexOf(':');
-const modAction = sep >= 0 ? raw.slice(0, sep) : '';
-const userId = sep >= 0 ? raw.slice(sep + 1).trim() : '';
-
-if (!['approve', 'reject'].includes(modAction)) {
-  await answerCallback.call(this, cq, 'Ação inválida.', true);
-  await clearMessageButtons.call(this, cq);
-  return [];
-}
-
-await answerCallback.call(
-  this,
-  cq,
-  modAction === 'approve' ? 'Usuário aprovado!' : 'Usuário rejeitado.'
-);
-
-let moderateResult;
-try {
-  moderateResult = await this.helpers.httpRequest({
-    method: 'POST',
-    url: AUTH_MODERATE_URL,
-    body: { userId, action: modAction, secret: APPROVAL_SECRET },
-    json: true,
-  });
-} catch (err) {
-  await answerCallback.call(this, cq, 'Erro ao atualizar cadastro.', true);
-  await clearMessageButtons.call(this, cq);
-  return [];
-}
-
-if (!moderateResult?.ok) {
-  await answerCallback.call(
-    this,
-    cq,
-    moderateResult?.error || 'Cadastro não encontrado.',
-    true
-  );
-  await clearMessageButtons.call(this, cq);
-  return [];
-}
-
-const resultText =
-  '🎮 Insocialidade — cadastro\\n\\n' +
-  '👤 ' + (moderateResult.username || userId) + '\\n' +
-  '🎨 ' + colorLabel(moderateResult.character_color) + '\\n\\n' +
-  (modAction === 'approve'
-    ? '✅ Aprovado — já pode entrar.'
-    : '❌ Não aprovado.');
-
-try {
-  await telegramApi.call(this, 'editMessageText', {
-    chat_id: cq.message.chat.id,
-    message_id: cq.message.message_id,
-    text: resultText,
-    reply_markup: { inline_keyboard: [] },
-  });
-} catch (err) {
-  await clearMessageButtons.call(this, cq);
-}
-
-return [];
-`.trim();
-
 const workflow = {
   name: WORKFLOW_NAME,
   nodes: [
@@ -278,20 +130,6 @@ const workflow = {
       webhookId: 'insocialidade-approval-notify',
     },
     {
-      parameters: {
-        httpMethod: 'POST',
-        path: 'insocialidade-telegram',
-        responseMode: 'onReceived',
-        options: {},
-      },
-      id: 'webhook-telegram',
-      name: 'Webhook Telegram',
-      type: 'n8n-nodes-base.webhook',
-      typeVersion: 2,
-      position: [0, 220],
-      webhookId: 'insocialidade-telegram-hook',
-    },
-    {
       parameters: { jsCode: NOTIFY_CODE, mode: 'runOnceForAllItems' },
       id: 'notify-code',
       name: 'Notify Handler',
@@ -299,18 +137,9 @@ const workflow = {
       typeVersion: 2,
       position: [280, 0],
     },
-    {
-      parameters: { jsCode: TELEGRAM_CODE, mode: 'runOnceForAllItems' },
-      id: 'telegram-code',
-      name: 'Telegram Callback Handler',
-      type: 'n8n-nodes-base.code',
-      typeVersion: 2,
-      position: [280, 220],
-    },
   ],
   connections: {
     'Webhook Notify': { main: [[{ node: 'Notify Handler', type: 'main', index: 0 }]] },
-    'Webhook Telegram': { main: [[{ node: 'Telegram Callback Handler', type: 'main', index: 0 }]] },
   },
   settings: { executionOrder: 'v1' },
 };
@@ -345,51 +174,15 @@ async function verifyTelegramBot() {
     );
   }
 
-  if (bot.username !== 'InsocialidadeBot') {
-    console.warn(`Aviso: esperado @InsocialidadeBot, recebido @${bot.username}`);
-  }
-
   return bot;
-}
-
-async function configureTelegramWebhook() {
-  const urls = [TELEGRAM_WEBHOOK_URL];
-  if (N8N_PUBLIC_BASE !== N8N_API_BASE) {
-    urls.push(`${N8N_API_BASE}/webhook/insocialidade-telegram`);
-  }
-
-  for (const url of urls) {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url,
-        allowed_updates: ['callback_query'],
-        drop_pending_updates: true,
-      }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      console.log('Telegram webhook:', url);
-      return;
-    }
-    console.warn(`setWebhook falhou (${url}): ${data.description}`);
-  }
-
-  throw new Error(
-    'Não foi possível configurar webhook Telegram. Verifique DNS de n8n.gepetodigital.com.'
-  );
 }
 
 async function deactivateOldWorkflow() {
   const existing = await api('GET', '/workflows?limit=100');
   const old = existing.data?.find((w) => w.name === OLD_WORKFLOW_NAME);
-  if (!old) return;
-
-  if (old.active) {
-    await api('POST', `/workflows/${old.id}/deactivate`);
-    console.log('Workflow antigo desativado:', old.id);
-  }
+  if (!old?.active) return;
+  await api('POST', `/workflows/${old.id}/deactivate`);
+  console.log('Workflow antigo desativado:', old.id);
 }
 
 async function main() {
@@ -416,11 +209,13 @@ async function main() {
   console.log('Workflow ativo:', workflowId);
 
   await deactivateOldWorkflow();
-  await configureTelegramWebhook();
 
-  console.log('Approval notify:', `${N8N_PUBLIC_BASE}/webhook/insocialidade-approval-notify`);
-  console.log('Auth moderate:', AUTH_MODERATE_URL);
-  console.log('Admin chat:', TELEGRAM_CHAT_ID);
+  console.log('');
+  console.log('n8n roda SOMENTE em novo cadastro:');
+  console.log('  POST http://127.0.0.1:5678/webhook/insocialidade-approval-notify');
+  console.log('');
+  console.log('Telegram (aprovar/rejeitar) → servidor Node /auth/telegram');
+  console.log('  Rode: node scripts/configure-telegram-webhook.js');
 }
 
 main().catch((err) => {

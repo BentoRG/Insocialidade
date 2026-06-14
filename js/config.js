@@ -2,7 +2,7 @@
  * CONFIGURAÇÃO — Insocialidade
  * =============================
  * Auth e cadastro via api.gepetodigital.com (Node).
- * Aprovação de novos cadastros via n8n + Telegram (n8n.gepetodigital.com).
+ * Aprovação de novos cadastros: n8n avisa Telegram; botões são tratados no servidor Node.
  * Tempo real (presença, chat) via WebSocket em ws.gepetodigital.com.
  */
 

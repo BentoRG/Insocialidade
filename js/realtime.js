@@ -170,14 +170,14 @@ export function createRealtimePresence({
     send({ type: 'move', x, y, facing, moving: Boolean(moving) });
   }
 
-  function openChat({ peerId, tileWidth, tileHeight }) {
+  function openChat({ peerId, x, y, tileWidth, tileHeight }) {
     if (!joined) return;
-    send({ type: 'chat_open', peerId, tileWidth, tileHeight });
+    send({ type: 'chat_request', peerId, x, y, tileWidth, tileHeight });
   }
 
-  function sendChat({ peerId, text, tileWidth, tileHeight }) {
+  function sendChat({ peerId, text, x, y, tileWidth, tileHeight }) {
     if (!joined) return;
-    send({ type: 'chat_send', peerId, text, tileWidth, tileHeight });
+    send({ type: 'chat_send', peerId, text, x, y, tileWidth, tileHeight });
   }
 
   connect();

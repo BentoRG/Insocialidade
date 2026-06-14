@@ -13,10 +13,18 @@ const KEY_MAP = {
   KeyD: [1, 0],
 };
 
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+}
+
 export function createInput() {
   const pressed = new Set();
 
   function onKeyDown(e) {
+    if (isTypingTarget(e.target)) return;
+
     if (KEY_MAP[e.code]) {
       e.preventDefault();
       pressed.add(e.code);
