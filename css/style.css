@@ -680,8 +680,9 @@ body {
 
 .game-local-chat__msg {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
   font-size: 0.82rem;
   line-height: 1.35;
 }
@@ -691,9 +692,14 @@ body {
 }
 
 .game-local-chat__msg-author {
+  flex-shrink: 0;
   font-weight: 700;
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+.game-local-chat__msg-author::after {
+  content: ':';
 }
 
 .game-local-chat__msg-text {
