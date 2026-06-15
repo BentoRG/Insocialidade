@@ -683,6 +683,7 @@ body {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.25rem;
+  position: relative;
   font-size: 0.82rem;
   line-height: 1.35;
 }
@@ -704,6 +705,33 @@ body {
 
 .game-local-chat__msg-text {
   word-break: break-word;
+}
+
+.game-local-chat__reply {
+  margin-left: auto;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #f9f5e8;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.game-local-chat__msg:hover .game-local-chat__reply,
+.game-local-chat__msg:focus-within .game-local-chat__reply {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.game-local-chat__reply:hover,
+.game-local-chat__reply:focus-visible {
+  color: var(--text);
 }
 
 .game-local-chat__system {

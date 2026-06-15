@@ -170,19 +170,32 @@ export function createLocalChat({
   function appendMessage({ from, text, username }) {
     if (!messagesEl) return;
 
+    const authorName = isSelf(from) ? 'Você' : username || 'Jogador';
     const row = document.createElement('div');
     row.className =
       'game-local-chat__msg' + (isSelf(from) ? ' game-local-chat__msg--self' : '');
 
     const author = document.createElement('span');
     author.className = 'game-local-chat__msg-author';
-    author.textContent = isSelf(from) ? 'Você' : username || 'Jogador';
+    author.textContent = authorName;
 
     const body = document.createElement('span');
     body.className = 'game-local-chat__msg-text';
     body.textContent = text;
 
-    row.append(author, body);
+    const replyButton = document.createElement('button');
+    replyButton.type = 'button';
+    replyButton.className = 'game-local-chat__reply';
+    replyButton.textContent = 'Responder';
+    replyButton.setAttribute('aria-label', `Responder mensagem de ${authorName}`);
+    replyButton.addEventListener('click', () => {
+      if (!inputEl) return;
+      inputEl.value = `@${authorName} `;
+      inputEl.focus();
+      inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+    });
+
+    row.append(author, body, replyButton);
     messagesEl.appendChild(row);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
