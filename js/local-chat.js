@@ -22,6 +22,7 @@ export function createLocalChat({
   let openingPeerId = null;
   let idleHint = '';
   let activePeerOutOfRange = false;
+  let nearbyPromptSignature = '';
   const pendingPeerIds = new Set();
   const incomingPeerIds = new Set();
   const dismissedPeerIds = new Set();
@@ -73,6 +74,7 @@ export function createLocalChat({
       idleHint || 'Aproxime-se de outro jogador (até 2 tiles) para conversar.';
     if (nearbyEl.dataset.idleHint === text) return;
 
+    nearbyPromptSignature = '';
     nearbyEl.dataset.idleHint = text;
     nearbyEl.replaceChildren();
     const hint = document.createElement('p');
@@ -83,6 +85,18 @@ export function createLocalChat({
 
   function renderNearbyPrompts(players) {
     if (!nearbyEl || activePeer) return;
+
+    const signature = players
+      .map((player) => {
+        const peerId = peerIdKey(player.id);
+        const pending = pendingPeerIds.has(peerId) ? 'pending' : '';
+        const incoming = incomingPeerIds.has(peerId) ? 'incoming' : '';
+        return `${peerId}:${player.username || ''}:${pending}:${incoming}`;
+      })
+      .join('|');
+    if (nearbyPromptSignature === signature) return;
+
+    nearbyPromptSignature = signature;
     nearbyEl.replaceChildren();
     delete nearbyEl.dataset.idleHint;
 
@@ -182,6 +196,7 @@ export function createLocalChat({
       nearbyEl.hidden = true;
       nearbyEl.replaceChildren();
       delete nearbyEl.dataset.idleHint;
+      nearbyPromptSignature = '';
     }
     if (activeEl) activeEl.hidden = false;
     if (peerNameEl) peerNameEl.textContent = peer.username || 'Jogador';
@@ -199,6 +214,7 @@ export function createLocalChat({
     if (activeEl) activeEl.hidden = true;
     if (messagesEl) messagesEl.replaceChildren();
     if (nearbyEl) nearbyEl.hidden = false;
+    nearbyPromptSignature = '';
     renderIdle();
   }
 
