@@ -122,7 +122,10 @@ export function createLocalChat({
         : incoming
           ? 'Autorizar'
           : 'Conversar';
-      button.addEventListener('click', () => requestChat(player));
+      button.addEventListener('click', () => {
+        if (incoming) acceptChat(player);
+        else requestChat(player);
+      });
 
       row.append(name, button);
       if (pending || incoming) {
@@ -243,6 +246,25 @@ export function createLocalChat({
 
     pendingPeerIds.add(peerId);
     incomingPeerIds.delete(peerId);
+    syncProximity();
+  }
+
+  function acceptChat(player) {
+    const peerId = peerIdKey(player.id);
+    if (!incomingPeerIds.has(peerId) || pendingPeerIds.has(peerId)) return;
+    if (activePeer && peerIdKey(activePeer.id) === peerId) return;
+
+    openingPeerId = peerId;
+
+    const sent = getRealtime()?.acceptChat({ peerId, ...positionPayload() });
+    if (!sent) {
+      openingPeerId = null;
+      showIdleHint('Conexão em tempo real ainda não está pronta. Tente novamente.');
+      return;
+    }
+
+    incomingPeerIds.delete(peerId);
+    pendingPeerIds.add(peerId);
     syncProximity();
   }
 

@@ -188,6 +188,11 @@ export function createRealtimePresence({
     return send({ type: 'chat_request', peerId, x, y, tileWidth, tileHeight });
   }
 
+  function acceptChat({ peerId, x, y, tileWidth, tileHeight }) {
+    if (!joined) return false;
+    return send({ type: 'chat_accept', peerId, x, y, tileWidth, tileHeight });
+  }
+
   function sendChat({ peerId, text, x, y, tileWidth, tileHeight }) {
     if (!joined) return false;
     return send({ type: 'chat_send', peerId, text, x, y, tileWidth, tileHeight });
@@ -198,6 +203,7 @@ export function createRealtimePresence({
   return {
     sendMove,
     openChat,
+    acceptChat,
     sendChat,
     destroy() {
       stopped = true;

@@ -488,6 +488,46 @@ function handleChatRequest(client, msg) {
   sendChatOpened(peer, client, room.messages);
 }
 
+function handleChatAccept(client, msg) {
+  const peerId = String(msg.peerId || '').trim();
+  const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
+  const tileH = Number(msg.tileHeight) || DEFAULT_TILE;
+  syncClientPosition(client, msg);
+
+  if (!peerId || peerId === client.id) {
+    sendChatError(client.ws, 'Jogador inválido.');
+    return;
+  }
+
+  const peer = findClientById(peerId);
+  if (!peer || peer.roomId !== client.roomId) {
+    sendChatError(client.ws, 'Jogador offline.');
+    return;
+  }
+
+  if (!areClientsNearby(client, peer, tileW, tileH)) {
+    pendingChatRequests.delete(chatRoomId(client.id, peerId));
+    sendChatError(client.ws, 'Aproxime-se do jogador (até 2 tiles).');
+    return;
+  }
+
+  const now = Date.now();
+  pruneChatRequests(now);
+  pruneChatRooms(now);
+
+  const requestId = chatRoomId(client.id, peerId);
+  const request = pendingChatRequests.get(requestId);
+  if (!request?.requestedBy?.has(peerId)) {
+    sendChatError(client.ws, 'Nenhum pedido de chat pendente.');
+    return;
+  }
+
+  pendingChatRequests.delete(requestId);
+  const room = getOrCreateChatRoom(client.id, peerId, now);
+  sendChatOpened(client, peer, room.messages);
+  sendChatOpened(peer, client, room.messages);
+}
+
 function handleChatSend(client, msg) {
   const peerId = String(msg.peerId || '').trim();
   const text = String(msg.text || '').trim();
@@ -633,6 +673,11 @@ wss.on('connection', (ws) => {
 
     if (msg.type === 'chat_request' || msg.type === 'chat_open') {
       handleChatRequest(client, msg);
+      return;
+    }
+
+    if (msg.type === 'chat_accept') {
+      handleChatAccept(client, msg);
       return;
     }
 
