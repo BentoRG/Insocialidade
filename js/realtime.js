@@ -17,6 +17,7 @@ export function createRealtimePresence({
   onStatus,
   onChatOpened,
   onChatPending,
+  onChatRequest,
   onChatMessage,
   onChatError,
 }) {
@@ -40,8 +41,9 @@ export function createRealtimePresence({
   }
 
   function send(payload) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
     ws.send(JSON.stringify(payload));
+    return true;
   }
 
   function handleMessage(event) {
@@ -101,6 +103,11 @@ export function createRealtimePresence({
 
     if (msg.type === 'chat_pending') {
       onChatPending?.(msg);
+      return;
+    }
+
+    if (msg.type === 'chat_request_received') {
+      onChatRequest?.(msg);
       return;
     }
 
@@ -177,13 +184,13 @@ export function createRealtimePresence({
   }
 
   function openChat({ peerId, x, y, tileWidth, tileHeight }) {
-    if (!joined) return;
-    send({ type: 'chat_request', peerId, x, y, tileWidth, tileHeight });
+    if (!joined) return false;
+    return send({ type: 'chat_request', peerId, x, y, tileWidth, tileHeight });
   }
 
   function sendChat({ peerId, text, x, y, tileWidth, tileHeight }) {
-    if (!joined) return;
-    send({ type: 'chat_send', peerId, text, x, y, tileWidth, tileHeight });
+    if (!joined) return false;
+    return send({ type: 'chat_send', peerId, text, x, y, tileWidth, tileHeight });
   }
 
   connect();

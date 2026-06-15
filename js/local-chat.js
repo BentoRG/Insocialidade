@@ -23,6 +23,7 @@ export function createLocalChat({
   let idleHint = '';
   let activePeerOutOfRange = false;
   const pendingPeerIds = new Set();
+  const incomingPeerIds = new Set();
   const dismissedPeerIds = new Set();
   const seenMessageIds = new Set();
   const submitBtn = formEl?.querySelector('button[type="submit"]');
@@ -88,10 +89,11 @@ export function createLocalChat({
     for (const player of players) {
       const peerId = peerIdKey(player.id);
       const pending = pendingPeerIds.has(peerId);
+      const incoming = incomingPeerIds.has(peerId);
       const row = document.createElement('div');
       row.className =
         'game-local-chat__prompt' +
-        (pending ? ' game-local-chat__prompt--pending' : '');
+        (pending || incoming ? ' game-local-chat__prompt--pending' : '');
 
       const name = document.createElement('span');
       name.className = 'game-local-chat__prompt-name';
@@ -101,15 +103,20 @@ export function createLocalChat({
       button.type = 'button';
       button.className = 'btn btn--sm game-local-chat__start';
       button.disabled = pending;
-      button.textContent = pending ? 'Aguardando aceite...' : 'Conversar';
+      button.textContent = pending
+        ? 'Aguardando aceite...'
+        : incoming
+          ? 'Autorizar'
+          : 'Conversar';
       button.addEventListener('click', () => requestChat(player));
 
       row.append(name, button);
-      if (pending) {
+      if (pending || incoming) {
         const status = document.createElement('p');
         status.className = 'game-local-chat__prompt-status';
-        status.textContent =
-          'O jogo está aguardando a autorização do outro jogador próximo para iniciar o chat.';
+        status.textContent = pending
+          ? 'O jogo está aguardando a autorização do outro jogador próximo para iniciar o chat.'
+          : `${player.username || 'Jogador'} quer conversar. Clique em Autorizar para iniciar o chat.`;
         row.appendChild(status);
       }
       nearbyEl.appendChild(row);
@@ -210,9 +217,16 @@ export function createLocalChat({
     if (activePeer && peerIdKey(activePeer.id) === peerId) return;
 
     openingPeerId = peerId;
-    pendingPeerIds.add(peerId);
 
-    getRealtime()?.openChat({ peerId, ...positionPayload() });
+    const sent = getRealtime()?.openChat({ peerId, ...positionPayload() });
+    if (!sent) {
+      openingPeerId = null;
+      showIdleHint('Conexão em tempo real ainda não está pronta. Tente novamente.');
+      return;
+    }
+
+    pendingPeerIds.add(peerId);
+    incomingPeerIds.delete(peerId);
     syncProximity();
   }
 
@@ -262,6 +276,10 @@ export function createLocalChat({
 
     for (const id of pendingPeerIds) {
       if (!nearbyIds.has(id)) pendingPeerIds.delete(id);
+    }
+
+    for (const id of incomingPeerIds) {
+      if (!nearbyIds.has(id)) incomingPeerIds.delete(id);
     }
 
     for (const id of dismissedPeerIds) {
@@ -317,6 +335,7 @@ export function createLocalChat({
         color: msg.peer.character_color,
       });
       pendingPeerIds.delete(peerIdKey(msg.peer.id));
+      incomingPeerIds.delete(peerIdKey(msg.peer.id));
       ingestMessages(msg.messages, msg.peer.username);
     },
     handleChatPending(msg) {
@@ -325,6 +344,15 @@ export function createLocalChat({
       if (!peerId) return;
 
       pendingPeerIds.add(peerId);
+      incomingPeerIds.delete(peerId);
+      syncProximity();
+    },
+    handleChatRequest(msg) {
+      const peerId = peerIdKey(msg?.peerId || msg?.peer?.id);
+      if (!peerId || peerIdKey(activePeer?.id) === peerId) return;
+
+      pendingPeerIds.delete(peerId);
+      incomingPeerIds.add(peerId);
       syncProximity();
     },
     handleChatMessage(msg) {
@@ -334,6 +362,7 @@ export function createLocalChat({
       if (peerIdKey(activePeer?.id) !== peerId) {
         openingPeerId = null;
         pendingPeerIds.delete(peerId);
+        incomingPeerIds.delete(peerId);
         dismissedPeerIds.delete(peerId);
         showActive(resolvePeer(peerId, msg.peer));
       }
@@ -343,6 +372,7 @@ export function createLocalChat({
     handleChatError(error) {
       openingPeerId = null;
       pendingPeerIds.clear();
+      incomingPeerIds.clear();
       if (String(error).includes('fora_de_alcance')) {
         if (activePeer) {
           setSendEnabled(false);

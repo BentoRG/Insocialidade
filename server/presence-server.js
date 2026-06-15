@@ -474,6 +474,11 @@ function handleChatRequest(client, msg) {
       peerId,
       peer: publicPlayer(peer),
     });
+    send(peer.ws, {
+      type: 'chat_request_received',
+      peerId: client.id,
+      peer: publicPlayer(client),
+    });
     return;
   }
 
