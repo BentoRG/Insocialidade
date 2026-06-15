@@ -7,7 +7,6 @@ import { findNearbyPlayers } from './proximity.js';
 export function createLocalChat({
   nearbyEl,
   activeEl,
-  peerNameEl,
   messagesEl,
   formEl,
   inputEl,
@@ -202,7 +201,6 @@ export function createLocalChat({
       nearbyPromptSignature = '';
     }
     if (activeEl) activeEl.hidden = false;
-    if (peerNameEl) peerNameEl.textContent = peer.username || 'Jogador';
     if (messagesEl) messagesEl.replaceChildren();
     setSendEnabled(isPeerInRange());
     inputEl?.focus();

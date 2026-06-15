@@ -665,19 +665,6 @@ body {
   overflow: hidden;
 }
 
-.game-local-chat__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-}
-
-.game-local-chat__peer {
-  font-size: 0.88rem;
-  font-weight: 700;
-  word-break: break-word;
-}
-
 .game-local-chat__messages {
   flex: 1;
   min-height: 12rem;
