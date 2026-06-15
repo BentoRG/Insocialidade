@@ -22,10 +22,12 @@ export function createLocalChat({
   let idleHint = '';
   let activePeerOutOfRange = false;
   let nearbyPromptSignature = '';
+  let pendingReply = null;
   const pendingPeerIds = new Set();
   const incomingPeerIds = new Set();
   const dismissedPeerIds = new Set();
   const seenMessageIds = new Set();
+  const messagesById = new Map();
   const submitBtn = formEl?.querySelector('button[type="submit"]');
 
   function peerIdKey(id) {
@@ -34,6 +36,19 @@ export function createLocalChat({
 
   function isSelf(from) {
     return peerIdKey(from) === peerIdKey(localUserId);
+  }
+
+  function messageIdKey(id) {
+    return String(id ?? '');
+  }
+
+  function messageAuthorName(from, fallback) {
+    return isSelf(from) ? 'Você' : fallback || activePeer?.username || 'Jogador';
+  }
+
+  function truncateMessage(text, maxLength = 90) {
+    const value = String(text || '').trim();
+    return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
   }
 
   function positionPayload() {
@@ -160,20 +175,89 @@ export function createLocalChat({
       seenMessageIds.add(msg.id);
       lastMessageId = Math.max(lastMessageId, msg.id);
       appendMessage({
+        id: msg.id,
         from: msg.from,
         text: msg.text,
         username: isSelf(msg.from) ? 'Você' : peerUsername || activePeer?.username,
+        replyTo: msg.replyTo,
       });
     }
   }
 
-  function appendMessage({ from, text, username }) {
+  function renderReplyDraft() {
+    activeEl?.querySelector('.game-local-chat__reply-draft')?.remove();
+    if (!pendingReply || !formEl) return;
+
+    const draft = document.createElement('div');
+    draft.className = 'game-local-chat__reply-draft';
+
+    const content = document.createElement('span');
+    content.className = 'game-local-chat__reply-draft-text';
+    content.textContent = `Respondendo ${pendingReply.authorName}: ${truncateMessage(pendingReply.text, 72)}`;
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'game-local-chat__reply-cancel';
+    cancel.textContent = 'Cancelar';
+    cancel.addEventListener('click', () => {
+      pendingReply = null;
+      renderReplyDraft();
+      inputEl?.focus();
+    });
+
+    draft.append(content, cancel);
+    formEl.before(draft);
+  }
+
+  function setPendingReply(message) {
+    pendingReply = {
+      id: message.id,
+      from: message.from,
+      authorName: message.authorName,
+      text: message.text,
+    };
+    renderReplyDraft();
+    inputEl?.focus();
+  }
+
+  function resolvedReply(replyTo, peerUsername) {
+    const replyId = messageIdKey(replyTo?.id);
+    if (!replyId) return null;
+
+    const stored = messagesById.get(replyId);
+    const from = replyTo.from || stored?.from;
+    const text = replyTo.text || stored?.text || '';
+    if (!from || !text) return null;
+
+    return {
+      id: replyId,
+      from,
+      authorName: messageAuthorName(from, peerUsername),
+      text,
+    };
+  }
+
+  function appendMessage({ id, from, text, username, replyTo }) {
     if (!messagesEl) return;
 
-    const authorName = isSelf(from) ? 'Você' : username || 'Jogador';
+    const messageId = messageIdKey(id);
+    const authorName = messageAuthorName(from, username);
+    const message = { id: messageId, from, authorName, text };
+    const reply = resolvedReply(replyTo, username);
+
+    if (messageId) messagesById.set(messageId, message);
+
     const row = document.createElement('div');
     row.className =
       'game-local-chat__msg' + (isSelf(from) ? ' game-local-chat__msg--self' : '');
+    if (messageId) row.dataset.messageId = messageId;
+
+    if (reply) {
+      const replyPreview = document.createElement('div');
+      replyPreview.className = 'game-local-chat__reply-preview';
+      replyPreview.textContent = `${reply.authorName}: ${truncateMessage(reply.text)}`;
+      row.appendChild(replyPreview);
+    }
 
     const author = document.createElement('span');
     author.className = 'game-local-chat__msg-author';
@@ -188,12 +272,7 @@ export function createLocalChat({
     replyButton.className = 'game-local-chat__reply';
     replyButton.textContent = 'Responder';
     replyButton.setAttribute('aria-label', `Responder mensagem de ${authorName}`);
-    replyButton.addEventListener('click', () => {
-      if (!inputEl) return;
-      inputEl.value = `@${authorName} `;
-      inputEl.focus();
-      inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
-    });
+    replyButton.addEventListener('click', () => setPendingReply(message));
 
     row.append(author, body, replyButton);
     messagesEl.appendChild(row);
@@ -206,6 +285,8 @@ export function createLocalChat({
     activePeerOutOfRange = false;
     pendingPeerIds.delete(peerIdKey(peer.id));
     seenMessageIds.clear();
+    messagesById.clear();
+    pendingReply = null;
     lastMessageId = 0;
     if (nearbyEl) {
       nearbyEl.hidden = true;
@@ -224,6 +305,9 @@ export function createLocalChat({
     activePeerOutOfRange = false;
     lastMessageId = 0;
     seenMessageIds.clear();
+    messagesById.clear();
+    pendingReply = null;
+    renderReplyDraft();
     setSendEnabled(false);
     if (activeEl) activeEl.hidden = true;
     if (messagesEl) messagesEl.replaceChildren();
@@ -309,11 +393,16 @@ export function createLocalChat({
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    getRealtime()?.sendChat({
+    const sent = getRealtime()?.sendChat({
       peerId: activePeer.id,
       text: trimmed,
+      replyTo: pendingReply ? { id: pendingReply.id } : null,
       ...positionPayload(),
     });
+    if (sent) {
+      pendingReply = null;
+      renderReplyDraft();
+    }
   }
 
   function syncProximity() {

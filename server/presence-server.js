@@ -441,6 +441,20 @@ function deliverChatMessage(userId, peerId, message) {
   }
 }
 
+function resolveReplyTo(room, replyTo) {
+  const replyId = Number(replyTo?.id);
+  if (!Number.isSafeInteger(replyId) || replyId <= 0) return null;
+
+  const original = room.messages.find((message) => message.id === replyId);
+  if (!original) return null;
+
+  return {
+    id: original.id,
+    from: original.from,
+    text: original.text,
+  };
+}
+
 function handleChatRequest(client, msg) {
   const peerId = String(msg.peerId || '').trim();
   const tileW = Number(msg.tileWidth) || DEFAULT_TILE;
@@ -573,12 +587,14 @@ function handleChatSend(client, msg) {
     sendChatError(client.ws, 'Nenhum chat ativo.');
     return;
   }
+  const replyTo = resolveReplyTo(room, msg.replyTo);
   const message = {
     id: room.nextMsgId++,
     from: client.id,
     text,
     at: now,
   };
+  if (replyTo) message.replyTo = replyTo;
   room.messages.push(message);
   room.updatedAt = now;
 

@@ -704,6 +704,17 @@ body {
 }
 
 .game-local-chat__msg-text {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.game-local-chat__reply-preview {
+  flex-basis: 100%;
+  padding-left: 0.35rem;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.3;
   word-break: break-word;
 }
 
@@ -739,6 +750,42 @@ body {
   font-size: 0.78rem;
   color: var(--muted);
   font-style: italic;
+}
+
+.game-local-chat__reply-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent, #27609e);
+  background: #fffef8;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.game-local-chat__reply-draft-text {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.game-local-chat__reply-cancel {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  text-decoration: underline;
+}
+
+.game-local-chat__reply-cancel:hover,
+.game-local-chat__reply-cancel:focus-visible {
+  color: var(--text);
 }
 
 .game-local-chat__form {

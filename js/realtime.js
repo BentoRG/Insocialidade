@@ -193,9 +193,9 @@ export function createRealtimePresence({
     return send({ type: 'chat_accept', peerId, x, y, tileWidth, tileHeight });
   }
 
-  function sendChat({ peerId, text, x, y, tileWidth, tileHeight }) {
+  function sendChat({ peerId, text, replyTo, x, y, tileWidth, tileHeight }) {
     if (!joined) return false;
-    return send({ type: 'chat_send', peerId, text, x, y, tileWidth, tileHeight });
+    return send({ type: 'chat_send', peerId, text, replyTo, x, y, tileWidth, tileHeight });
   }
 
   connect();

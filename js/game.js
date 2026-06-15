@@ -10,8 +10,8 @@ import { loadMap } from './canvas/map.js?v=canvas20';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas39';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
-import { createLocalChat } from './local-chat.js?v=chat17';
-import { createRealtimePresence } from './realtime.js?v=rt7';
+import { createLocalChat } from './local-chat.js?v=chat18';
+import { createRealtimePresence } from './realtime.js?v=rt8';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
