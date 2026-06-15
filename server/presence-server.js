@@ -441,7 +441,14 @@ function deliverChatMessage(userId, peerId, message) {
   }
 }
 
-function resolveReplyTo(room, replyTo) {
+function messageUsername(message, client, peer) {
+  if (message.username) return message.username;
+  if (message.from === client.id) return client.username;
+  if (message.from === peer.id) return peer.username;
+  return findClientById(message.from)?.username || 'Jogador';
+}
+
+function resolveReplyTo(room, replyTo, client, peer) {
   const replyId = Number(replyTo?.id);
   if (!Number.isSafeInteger(replyId) || replyId <= 0) return null;
 
@@ -451,6 +458,7 @@ function resolveReplyTo(room, replyTo) {
   return {
     id: original.id,
     from: original.from,
+    username: messageUsername(original, client, peer),
     text: original.text,
   };
 }
@@ -587,10 +595,11 @@ function handleChatSend(client, msg) {
     sendChatError(client.ws, 'Nenhum chat ativo.');
     return;
   }
-  const replyTo = resolveReplyTo(room, msg.replyTo);
+  const replyTo = resolveReplyTo(room, msg.replyTo, client, peer);
   const message = {
     id: room.nextMsgId++,
     from: client.id,
+    username: client.username,
     text,
     at: now,
   };

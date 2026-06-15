@@ -14,6 +14,7 @@ export function createLocalChat({
   getRemotePlayers,
   getTileSize,
   localUserId,
+  localUsername,
   getRealtime,
 }) {
   let activePeer = null;
@@ -44,6 +45,10 @@ export function createLocalChat({
 
   function messageAuthorName(from, fallback) {
     return isSelf(from) ? 'Você' : fallback || activePeer?.username || 'Jogador';
+  }
+
+  function actualAuthorName(from, fallback) {
+    return fallback || (isSelf(from) ? localUsername : activePeer?.username) || 'Jogador';
   }
 
   function truncateMessage(text, maxLength = 90) {
@@ -178,7 +183,11 @@ export function createLocalChat({
         id: msg.id,
         from: msg.from,
         text: msg.text,
-        username: isSelf(msg.from) ? 'Você' : peerUsername || activePeer?.username,
+        username: peerUsername || activePeer?.username,
+        authorUsername:
+          msg.username ||
+          msg.fromUsername ||
+          actualAuthorName(msg.from, isSelf(msg.from) ? localUsername : peerUsername),
         replyTo: msg.replyTo,
       });
     }
@@ -213,7 +222,7 @@ export function createLocalChat({
     pendingReply = {
       id: message.id,
       from: message.from,
-      authorName: message.authorName,
+      authorName: message.actualName,
       text: message.text,
     };
     renderReplyDraft();
@@ -232,17 +241,22 @@ export function createLocalChat({
     return {
       id: replyId,
       from,
-      authorName: messageAuthorName(from, peerUsername),
+      authorName:
+        replyTo.username ||
+        replyTo.fromUsername ||
+        stored?.actualName ||
+        actualAuthorName(from, peerUsername),
       text,
     };
   }
 
-  function appendMessage({ id, from, text, username, replyTo }) {
+  function appendMessage({ id, from, text, username, authorUsername, replyTo }) {
     if (!messagesEl) return;
 
     const messageId = messageIdKey(id);
     const authorName = messageAuthorName(from, username);
-    const message = { id: messageId, from, authorName, text };
+    const actualName = actualAuthorName(from, authorUsername || username);
+    const message = { id: messageId, from, authorName, actualName, text };
     const reply = resolvedReply(replyTo, username);
 
     if (messageId) messagesById.set(messageId, message);
