@@ -628,6 +628,7 @@ body {
 
 .game-local-chat__prompt {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.55rem;
@@ -645,6 +646,14 @@ body {
   font-size: 0.86rem;
   font-weight: 700;
   word-break: break-word;
+}
+
+.game-local-chat__prompt-status {
+  flex-basis: 100%;
+  margin: -0.15rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
 }
 
 .game-local-chat__active {

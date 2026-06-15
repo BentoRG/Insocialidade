@@ -16,6 +16,7 @@ export function createRealtimePresence({
   onUsers,
   onStatus,
   onChatOpened,
+  onChatPending,
   onChatMessage,
   onChatError,
 }) {
@@ -95,6 +96,11 @@ export function createRealtimePresence({
 
     if (msg.type === 'chat_opened') {
       onChatOpened?.(msg);
+      return;
+    }
+
+    if (msg.type === 'chat_pending') {
+      onChatPending?.(msg);
       return;
     }
 

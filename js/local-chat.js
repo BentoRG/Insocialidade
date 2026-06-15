@@ -105,6 +105,13 @@ export function createLocalChat({
       button.addEventListener('click', () => requestChat(player));
 
       row.append(name, button);
+      if (pending) {
+        const status = document.createElement('p');
+        status.className = 'game-local-chat__prompt-status';
+        status.textContent =
+          'O jogo está aguardando a autorização do outro jogador próximo para iniciar o chat.';
+        row.appendChild(status);
+      }
       nearbyEl.appendChild(row);
     }
   }
@@ -206,6 +213,7 @@ export function createLocalChat({
     pendingPeerIds.add(peerId);
 
     getRealtime()?.openChat({ peerId, ...positionPayload() });
+    syncProximity();
   }
 
   function resolvePeer(peerId, peer = null) {
@@ -310,6 +318,14 @@ export function createLocalChat({
       });
       pendingPeerIds.delete(peerIdKey(msg.peer.id));
       ingestMessages(msg.messages, msg.peer.username);
+    },
+    handleChatPending(msg) {
+      openingPeerId = null;
+      const peerId = peerIdKey(msg?.peerId || msg?.peer?.id);
+      if (!peerId) return;
+
+      pendingPeerIds.add(peerId);
+      syncProximity();
     },
     handleChatMessage(msg) {
       const peerId = peerIdKey(msg.peerId);
