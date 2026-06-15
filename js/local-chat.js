@@ -328,13 +328,11 @@ export function createLocalChat({
       const inRange = nearbyIds.has(peerIdKey(activePeer.id));
       setSendEnabled(inRange);
       if (!inRange) {
-        if (!activePeerOutOfRange) {
-          appendSystem('Você se afastou — aproxime-se para responder.');
-        }
-        activePeerOutOfRange = true;
-      } else {
-        activePeerOutOfRange = false;
+        closeChat();
+        showIdleHint('Chat encerrado porque vocês se afastaram.');
+        return;
       }
+      activePeerOutOfRange = false;
       return;
     }
 
@@ -413,11 +411,8 @@ export function createLocalChat({
       incomingPeerIds.clear();
       if (String(error).includes('fora_de_alcance')) {
         if (activePeer) {
-          setSendEnabled(false);
-          if (!activePeerOutOfRange) {
-            appendSystem('Você se afastou — aproxime-se para responder.');
-          }
-          activePeerOutOfRange = true;
+          closeChat();
+          showIdleHint('Chat encerrado porque vocês se afastaram.');
         }
         return;
       }

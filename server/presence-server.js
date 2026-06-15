@@ -350,6 +350,18 @@ function pruneClientChatRequests(client) {
   }
 }
 
+function pruneClientChatRooms(client) {
+  for (const [roomId, room] of chatRooms.entries()) {
+    if (!room.participants.includes(client.id)) continue;
+
+    const peerId = room.participants.find((id) => id !== client.id);
+    const peer = peerId ? findClientById(peerId) : null;
+    if (!peer || peer.roomId !== client.roomId || !areClientsNearby(client, peer)) {
+      chatRooms.delete(roomId);
+    }
+  }
+}
+
 function tilesApart(ax, ay, bx, by, tileW, tileH) {
   const ac = Math.floor(ax / tileW);
   const ar = Math.floor(ay / tileH);
@@ -381,16 +393,14 @@ function syncClientPosition(client, msg) {
   client.lastSeen = Date.now();
 }
 
-function getOrCreateChatRoom(userId, peerId, now) {
+function createFreshChatRoom(userId, peerId, now) {
   const roomId = chatRoomId(userId, peerId);
-  if (!chatRooms.has(roomId)) {
-    chatRooms.set(roomId, {
-      participants: [userId, peerId].sort(),
-      messages: [],
-      updatedAt: now,
-      nextMsgId: 1,
-    });
-  }
+  chatRooms.set(roomId, {
+    participants: [userId, peerId].sort(),
+    messages: [],
+    updatedAt: now,
+    nextMsgId: 1,
+  });
   return chatRooms.get(roomId);
 }
 
@@ -483,7 +493,7 @@ function handleChatRequest(client, msg) {
   }
 
   pendingChatRequests.delete(requestId);
-  const room = getOrCreateChatRoom(client.id, peerId, now);
+  const room = createFreshChatRoom(client.id, peerId, now);
   sendChatOpened(client, peer, room.messages);
   sendChatOpened(peer, client, room.messages);
 }
@@ -523,7 +533,7 @@ function handleChatAccept(client, msg) {
   }
 
   pendingChatRequests.delete(requestId);
-  const room = getOrCreateChatRoom(client.id, peerId, now);
+  const room = createFreshChatRoom(client.id, peerId, now);
   sendChatOpened(client, peer, room.messages);
   sendChatOpened(peer, client, room.messages);
 }
@@ -551,13 +561,18 @@ function handleChatSend(client, msg) {
   }
 
   if (!areClientsNearby(client, peer, tileW, tileH)) {
+    chatRooms.delete(chatRoomId(client.id, peerId));
     sendChatError(client.ws, 'fora_de_alcance');
     return;
   }
 
   const now = Date.now();
   pruneChatRooms(now);
-  const room = getOrCreateChatRoom(client.id, peerId, now);
+  const room = chatRooms.get(chatRoomId(client.id, peerId));
+  if (!room) {
+    sendChatError(client.ws, 'Nenhum chat ativo.');
+    return;
+  }
   const message = {
     id: room.nextMsgId++,
     from: client.id,
@@ -657,6 +672,7 @@ wss.on('connection', (ws) => {
       client.moving = Boolean(msg.moving);
       client.lastSeen = Date.now();
       pruneClientChatRequests(client);
+      pruneClientChatRooms(client);
 
       const room = getRoom(client.roomId);
       broadcastRoom(room, client.id, {
