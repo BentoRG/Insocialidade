@@ -857,8 +857,8 @@ body {
   bottom: 0.75rem;
   transform: translateX(-50%);
   z-index: 6;
-  width: auto;
-  max-width: calc(100% - 1rem);
+  width: 92%;
+  max-width: none;
   text-align: center;
   white-space: normal;
   pointer-events: auto;
@@ -930,8 +930,8 @@ body {
   bottom: 0.75rem;
   transform: translateX(-50%);
   z-index: 10000;
-  width: auto;
-  max-width: min(92%, 960px);
+  width: 92%;
+  max-width: 960px;
   pointer-events: auto;
 }
 
