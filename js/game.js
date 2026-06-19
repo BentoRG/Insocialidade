@@ -9,7 +9,7 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake1';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake3';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
@@ -25,6 +25,10 @@ const gameCanvas = document.getElementById('game-canvas');
 const gameStatus = document.getElementById('game-status');
 const usersList = document.getElementById('users-list');
 const arbustoPromptBtn = document.getElementById('arbusto-prompt-btn');
+const snakeExitBtn = document.getElementById('snake-exit-btn');
+const snakeGameoverPanel = document.getElementById('snake-gameover-panel');
+const snakeRetryBtn = document.getElementById('snake-retry-btn');
+const snakeGameoverExitBtn = document.getElementById('snake-gameover-exit-btn');
 
 let engine = null;
 let loadedMap = null;
@@ -114,13 +118,6 @@ function setupKeyboardShortcuts(engine) {
   function onKeyDown(e) {
     if (e.repeat || isTypingTarget(e.target)) return;
 
-    if (e.code === 'Escape' && engine.isMinigameOpen()) {
-      e.preventDefault();
-      engine.closeMinigame();
-      updateArbustoPrompt();
-      return;
-    }
-
     if (e.code === 'Space') {
       e.preventDefault();
       engine.togglePause();
@@ -136,7 +133,7 @@ function setupKeyboardShortcuts(engine) {
 
     if (engine.isMinigameOpen() && e.code === 'Enter') {
       e.preventDefault();
-      engine.getMinigame()?.requestRestart?.();
+      retrySnakeMinigame();
     }
   }
 
@@ -153,15 +150,48 @@ function updateArbustoPrompt() {
   arbustoPromptBtn.hidden = !show;
 }
 
+function updateSnakeControls() {
+  const minigame = engine?.getMinigame();
+  const open = Boolean(engine?.isMinigameOpen() && minigame);
+
+  if (!open) {
+    if (snakeExitBtn) snakeExitBtn.hidden = true;
+    if (snakeGameoverPanel) snakeGameoverPanel.hidden = true;
+    return;
+  }
+
+  const gameOver = minigame.getStatus?.() === 'gameover';
+  if (snakeGameoverPanel) snakeGameoverPanel.hidden = !gameOver;
+  if (snakeExitBtn) snakeExitBtn.hidden = gameOver;
+}
+
+function closeSnakeMinigame() {
+  if (!engine) return;
+  engine.closeMinigame();
+  updateSnakeControls();
+  updateArbustoPrompt();
+}
+
+function retrySnakeMinigame() {
+  const minigame = engine?.getMinigame();
+  if (!minigame || minigame.getStatus?.() !== 'gameover') return;
+  minigame.restart?.();
+  updateSnakeControls();
+}
+
 function openSnakeMinigame() {
   if (!engine) return;
 
   arbustoPromptBtn.hidden = true;
   engine.openMinigame(
     createSnakeMinigame({
-      onClose: () => updateArbustoPrompt(),
+      onClose: () => {
+        updateSnakeControls();
+        updateArbustoPrompt();
+      },
     })
   );
+  updateSnakeControls();
 }
 
 function paintCanvasMessage(title, detail = '') {
@@ -342,11 +372,9 @@ async function init() {
     updatePauseButton(engine);
   });
   arbustoPromptBtn?.addEventListener('click', () => openSnakeMinigame());
-  gameCanvas?.addEventListener('click', () => {
-    if (engine?.isMinigameOpen()) {
-      engine.getMinigame()?.requestRestart?.();
-    }
-  });
+  snakeExitBtn?.addEventListener('click', () => closeSnakeMinigame());
+  snakeRetryBtn?.addEventListener('click', () => retrySnakeMinigame());
+  snakeGameoverExitBtn?.addEventListener('click', () => closeSnakeMinigame());
   updatePauseButton(engine);
   removeKeyboardShortcuts = setupKeyboardShortcuts(engine);
 
@@ -400,6 +428,7 @@ async function init() {
   removeChatTick = engine.addTickListener(() => {
     localChat?.update();
     updateArbustoPrompt();
+    updateSnakeControls();
   });
 
   await waitForLayout();

@@ -869,6 +869,34 @@ body {
   cursor: pointer;
 }
 
+.game-snake-exit {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: auto;
+  pointer-events: auto;
+}
+
+.game-snake-gameover {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  width: min(92%, 280px);
+  pointer-events: auto;
+}
+
+.game-snake-gameover[hidden] {
+  display: none !important;
+}
+
 .game-fullscreen-exit {
   display: none;
 }
@@ -909,6 +937,28 @@ body {
   z-index: 10000;
   width: 92%;
   max-width: 960px;
+  pointer-events: auto;
+}
+
+#game-root:fullscreen .game-snake-exit,
+#game-root:-webkit-full-screen .game-snake-exit {
+  position: fixed;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 10001;
+  width: auto;
+  pointer-events: auto;
+}
+
+#game-root:fullscreen .game-snake-gameover,
+#game-root:-webkit-full-screen .game-snake-gameover {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10002;
+  width: min(92%, 320px);
   pointer-events: auto;
 }
 

@@ -7,7 +7,7 @@
     <title>Insocialidade</title>
     <link rel="icon" type="image/png" href="logo.png" />
     <link rel="apple-touch-icon" href="logo.png" />
-    <link rel="stylesheet" href="css/style.css?v=layout13" />
+    <link rel="stylesheet" href="css/style.css?v=layout15" />
 
     <!--
       Proteção de rota: game.js chama requireAuth() antes de renderizar.
@@ -64,6 +64,22 @@
             >
               O que você achou do meu desfarce? Se quiser jogar o JOGO DA COBRINHA clique aqui…
             </button>
+            <button
+              type="button"
+              id="snake-exit-btn"
+              class="btn btn--sm game-snake-exit"
+              hidden
+            >
+              Sair do jogo
+            </button>
+            <div id="snake-gameover-panel" class="game-snake-gameover" hidden>
+              <button type="button" id="snake-retry-btn" class="btn">
+                Tentar novamente
+              </button>
+              <button type="button" id="snake-gameover-exit-btn" class="btn btn--sm">
+                Sair
+              </button>
+            </div>
           </div>
           <p id="game-status" class="game-status" aria-live="polite"></p>
         </main>
@@ -122,6 +138,6 @@
       </p>
     </footer>
 
-    <script type="module" src="js/game.js?v=game43"></script>
+    <script type="module" src="js/game.js?v=game45"></script>
   </body>
 </html>
