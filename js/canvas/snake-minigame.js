@@ -2,6 +2,8 @@
  * Minigame Jogo da Cobrinha — overlay no canvas principal.
  */
 
+import { getSnakeBestScore, saveSnakeBestScore } from '../snake-best-score.js';
+
 const GRID_SIZE = 15;
 const MOVE_INTERVAL_MS = 155;
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
@@ -124,11 +126,18 @@ function drawGameOverScreen(ctx, boardX, boardY, boardW, boardH) {
   ctx.fillRect(boardX, boardY, boardW, boardH);
 }
 
-export function createSnakeMinigame({ onClose } = {}) {
+export function createSnakeMinigame({ userId, onClose } = {}) {
   let state = createInitialState();
+  let bestScore = getSnakeBestScore(userId);
 
   function resetGame() {
     state = createInitialState();
+  }
+
+  function handleGameOver() {
+    if (state.status === 'gameover') return;
+    state.status = 'gameover';
+    bestScore = saveSnakeBestScore(userId, state.score);
   }
 
   function stepSnake() {
@@ -144,16 +153,17 @@ export function createSnakeMinigame({ onClose } = {}) {
       next.y >= GRID_SIZE ||
       state.snake.some((segment) => segment.x === next.x && segment.y === next.y)
     ) {
-      state.status = 'gameover';
+      handleGameOver();
       return;
     }
 
     state.snake.unshift(next);
 
-    if (state.food && next.x === state.food.x && next.y === state.food.y) {
+      if (state.food && next.x === state.food.x && next.y === state.food.y) {
       state.score += 1;
+      if (state.score > bestScore) bestScore = state.score;
       state.food = randomEmptyCell(state.snake);
-      if (!state.food) state.status = 'gameover';
+      if (!state.food) handleGameOver();
     } else {
       state.snake.pop();
     }
@@ -175,6 +185,10 @@ export function createSnakeMinigame({ onClose } = {}) {
 
     getScore() {
       return state.score;
+    },
+
+    getBestScore() {
+      return bestScore;
     },
 
     restart() {
@@ -214,7 +228,7 @@ export function createSnakeMinigame({ onClose } = {}) {
       ctx.fillRect(0, 0, screenW, screenH);
 
       const margin = 16;
-      const headerH = 64;
+      const headerH = 78;
       const footerH = 28;
       const maxBoardW = screenW - margin * 2;
       const maxBoardH = screenH - margin * 2 - headerH - footerH;
@@ -245,6 +259,10 @@ export function createSnakeMinigame({ onClose } = {}) {
       ctx.fillStyle = TEXT_COLOR;
       ctx.font = 'bold 28px ui-monospace, monospace';
       ctx.fillText(String(state.score), screenW / 2, margin + 34);
+
+      ctx.fillStyle = MUTED_COLOR;
+      ctx.font = '11px ui-monospace, monospace';
+      ctx.fillText(`Seu recorde: ${bestScore}`, screenW / 2, margin + 62);
 
       ctx.fillStyle = PANEL_BG;
       ctx.fillRect(boardX - 2, boardY - 2, boardW + 4, boardH + 4);

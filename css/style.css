@@ -918,6 +918,13 @@ body {
   color: #f8f3e6;
 }
 
+.game-snake-gameover__best {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: #e6d3a3;
+  text-align: center;
+}
+
 .game-snake-gameover[hidden] {
   display: none !important;
 }

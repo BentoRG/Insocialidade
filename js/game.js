@@ -9,7 +9,7 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake4';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake5';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
@@ -29,6 +29,7 @@ const snakeExitBtn = document.getElementById('snake-exit-btn');
 const snakeGameoverPanel = document.getElementById('snake-gameover-panel');
 const snakeRetryBtn = document.getElementById('snake-retry-btn');
 const snakeGameoverScore = document.getElementById('snake-gameover-score');
+const snakeGameoverBest = document.getElementById('snake-gameover-best');
 const snakeGameoverExitBtn = document.getElementById('snake-gameover-exit-btn');
 
 let engine = null;
@@ -37,6 +38,7 @@ let localChat = null;
 let realtime = null;
 let removeChatTick = null;
 let removeKeyboardShortcuts = null;
+let snakeUserId = null;
 /** @type {Array<{id: string, username: string, character_color: string}>} */
 let memberDirectory = [];
 /** @type {Set<string>} */
@@ -167,6 +169,9 @@ function updateSnakeControls() {
   if (gameOver && snakeGameoverScore) {
     snakeGameoverScore.textContent = String(minigame.getScore?.() ?? 0);
   }
+  if (gameOver && snakeGameoverBest) {
+    snakeGameoverBest.textContent = `Seu recorde: ${minigame.getBestScore?.() ?? 0}`;
+  }
 }
 
 function closeSnakeMinigame() {
@@ -184,11 +189,12 @@ function retrySnakeMinigame() {
 }
 
 function openSnakeMinigame() {
-  if (!engine) return;
+  if (!engine || !snakeUserId) return;
 
   arbustoPromptBtn.hidden = true;
   engine.openMinigame(
     createSnakeMinigame({
+      userId: snakeUserId,
       onClose: () => {
         updateSnakeControls();
         updateArbustoPrompt();
@@ -346,6 +352,7 @@ async function init() {
   loadedMap = map;
   const mapId = map.id || getCurrentMapId(CONFIG.MAP_URL);
   const userKey = profile.id || profile.username;
+  snakeUserId = userKey;
   const spawn = resolvePlayerSpawn(map, mapId, profile, userKey);
 
   const localPlayer = createLocalPlayer({
