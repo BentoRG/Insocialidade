@@ -7,7 +7,7 @@
     <title>Insocialidade</title>
     <link rel="icon" type="image/png" href="logo.png" />
     <link rel="apple-touch-icon" href="logo.png" />
-    <link rel="stylesheet" href="css/style.css?v=layout12" />
+    <link rel="stylesheet" href="css/style.css?v=layout13" />
 
     <!--
       Proteção de rota: game.js chama requireAuth() antes de renderizar.
@@ -55,6 +55,14 @@
               aria-pressed="false"
             >
               Tela cheia
+            </button>
+            <button
+              type="button"
+              id="arbusto-prompt-btn"
+              class="btn game-arbusto-prompt"
+              hidden
+            >
+              O que você achou do meu desfarce? Se quiser jogar o JOGO DA COBRINHA clique aqui…
             </button>
           </div>
           <p id="game-status" class="game-status" aria-live="polite"></p>
@@ -114,6 +122,6 @@
       </p>
     </footer>
 
-    <script type="module" src="js/game.js?v=game42"></script>
+    <script type="module" src="js/game.js?v=game43"></script>
   </body>
 </html>

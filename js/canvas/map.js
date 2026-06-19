@@ -4,6 +4,7 @@
 
 import { collidesAt } from './collision.js?v=canvas18';
 import { parseRegions, createRegionLookup } from './regions.js?v=canvas20';
+import { isWithinTileRadius } from '../proximity.js';
 
 const POCO_TILE_GID = 8;
 const ARBUSTO_TILE_GID = 10;
@@ -173,6 +174,41 @@ function findCentralWellTile(mapData, collisionData) {
   }
 
   return best;
+}
+
+function findArbustoTiles(mapData, collisionData) {
+  const mapWidth = mapData.width;
+  const mapHeight = mapData.height;
+  const tiles = [];
+
+  for (let row = 0; row < mapHeight; row++) {
+    for (let col = 0; col < mapWidth; col++) {
+      const idx = row * mapWidth + col;
+      if (collisionData[idx] !== ARBUSTO_TILE_GID) continue;
+      tiles.push({ col, row });
+    }
+  }
+
+  return tiles;
+}
+
+export function isNearArbusto(map, playerX, playerY, radius = 1) {
+  if (!map?.arbustoTiles?.length) return false;
+
+  const tileWidth = map.tileWidth;
+  const tileHeight = map.tileHeight;
+
+  for (const tile of map.arbustoTiles) {
+    const tileX = tile.col * tileWidth + tileWidth / 2;
+    const tileY = tile.row * tileHeight + tileHeight / 2;
+    if (
+      isWithinTileRadius(playerX, playerY, tileX, tileY, tileWidth, tileHeight, radius)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getSpawnBesideWell(map, wellTile) {
@@ -352,6 +388,7 @@ export async function loadMap(mapUrl) {
 
   map.id = getMapId(mapFetchUrl);
   map.defaultSpawn = getDefaultSpawn(map, mapData, collisionData);
+  map.arbustoTiles = findArbustoTiles(mapData, collisionData);
 
   const regions = parseRegions(mapData);
   const regionLookup = createRegionLookup(regions);

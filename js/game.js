@@ -6,9 +6,10 @@
 import { CONFIG, resolveAsset } from './config.js?v=auth16';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
-import { loadMap } from './canvas/map.js?v=canvas21';
+import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
-import { createGameEngine } from './canvas/engine.js?v=canvas39';
+import { createGameEngine } from './canvas/engine.js?v=canvas40';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake1';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
@@ -23,8 +24,10 @@ const gameRoot = document.getElementById('game-root');
 const gameCanvas = document.getElementById('game-canvas');
 const gameStatus = document.getElementById('game-status');
 const usersList = document.getElementById('users-list');
+const arbustoPromptBtn = document.getElementById('arbusto-prompt-btn');
 
 let engine = null;
+let loadedMap = null;
 let localChat = null;
 let realtime = null;
 let removeChatTick = null;
@@ -111,18 +114,54 @@ function setupKeyboardShortcuts(engine) {
   function onKeyDown(e) {
     if (e.repeat || isTypingTarget(e.target)) return;
 
+    if (e.code === 'Escape' && engine.isMinigameOpen()) {
+      e.preventDefault();
+      engine.closeMinigame();
+      updateArbustoPrompt();
+      return;
+    }
+
     if (e.code === 'Space') {
       e.preventDefault();
       engine.togglePause();
       updatePauseButton(engine);
-    } else if (e.code === 'KeyF') {
+      return;
+    }
+
+    if (e.code === 'KeyF') {
       e.preventDefault();
       void toggleFullscreen();
+      return;
+    }
+
+    if (engine.isMinigameOpen() && e.code === 'Enter') {
+      e.preventDefault();
+      engine.getMinigame()?.requestRestart?.();
     }
   }
 
   window.addEventListener('keydown', onKeyDown);
   return () => window.removeEventListener('keydown', onKeyDown);
+}
+
+function updateArbustoPrompt() {
+  if (!arbustoPromptBtn || !engine || !loadedMap) return;
+
+  const localPlayer = engine.getLocalPlayer();
+  const near = isNearArbusto(loadedMap, localPlayer.x, localPlayer.y, 1);
+  const show = near && !engine.isMinigameOpen();
+  arbustoPromptBtn.hidden = !show;
+}
+
+function openSnakeMinigame() {
+  if (!engine) return;
+
+  arbustoPromptBtn.hidden = true;
+  engine.openMinigame(
+    createSnakeMinigame({
+      onClose: () => updateArbustoPrompt(),
+    })
+  );
 }
 
 function paintCanvasMessage(title, detail = '') {
@@ -270,6 +309,7 @@ async function init() {
   updateFullscreenButton();
 
   const map = await loadMap(resolveAsset(CONFIG.MAP_URL, { bust: true }));
+  loadedMap = map;
   const mapId = map.id || getCurrentMapId(CONFIG.MAP_URL);
   const userKey = profile.id || profile.username;
   const spawn = resolvePlayerSpawn(map, mapId, profile, userKey);
@@ -300,6 +340,12 @@ async function init() {
   pauseBtn?.addEventListener('click', () => {
     engine.togglePause();
     updatePauseButton(engine);
+  });
+  arbustoPromptBtn?.addEventListener('click', () => openSnakeMinigame());
+  gameCanvas?.addEventListener('click', () => {
+    if (engine?.isMinigameOpen()) {
+      engine.getMinigame()?.requestRestart?.();
+    }
   });
   updatePauseButton(engine);
   removeKeyboardShortcuts = setupKeyboardShortcuts(engine);
@@ -351,7 +397,10 @@ async function init() {
     },
   });
 
-  removeChatTick = engine.addTickListener(() => localChat?.update());
+  removeChatTick = engine.addTickListener(() => {
+    localChat?.update();
+    updateArbustoPrompt();
+  });
 
   await waitForLayout();
   engine.resize();

@@ -83,6 +83,22 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   let lastSentMoving = localPlayer.moving;
   let resizeObserver = null;
   let paused = false;
+  let minigame = null;
+
+  function closeMinigame() {
+    if (!minigame) return;
+    minigame.destroy?.();
+    minigame = null;
+    input.clear();
+    localPlayer.moving = false;
+  }
+
+  function openMinigame(nextMinigame) {
+    closeMinigame();
+    minigame = nextMinigame;
+    localPlayer.moving = false;
+    input.clear();
+  }
 
   function isFullscreen() {
     const root = canvas.closest('#game-root');
@@ -155,6 +171,10 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     const screenW = canvas.width / dpr;
     const screenH = canvas.height / dpr;
 
+    if (minigame) {
+      minigame.draw(ctx, screenW, screenH);
+    }
+
     if (paused) {
       ctx.fillStyle = PAUSE_OVERLAY;
       ctx.fillRect(0, 0, screenW, screenH);
@@ -169,8 +189,10 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       });
     }
 
-    const regionName = map.getRegionNameAt?.(localPlayer.x, localPlayer.y);
-    drawRegionLabel(ctx, regionName, screenW, { fullscreen: isFullscreen() });
+    if (!minigame) {
+      const regionName = map.getRegionNameAt?.(localPlayer.x, localPlayer.y);
+      drawRegionLabel(ctx, regionName, screenW, { fullscreen: isFullscreen() });
+    }
   }
 
   function tick(now) {
@@ -185,12 +207,22 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       return;
     }
 
-    if (!paused) {
+    const worldActive = !paused && !minigame;
+
+    if (worldActive) {
       updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
 
       for (const remote of remotePlayers.values()) {
         updateRemotePlayer(remote, dt);
       }
+    } else if (!paused) {
+      for (const remote of remotePlayers.values()) {
+        updateRemotePlayer(remote, dt);
+      }
+    }
+
+    if (minigame && !paused) {
+      minigame.update(dt, input);
     }
 
     for (const listener of tickListeners) {
@@ -203,7 +235,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     const camera = computeCamera(localPlayer, map, viewW, viewH);
     render(camera);
 
-    if (onMove && !paused) {
+    if (onMove && worldActive) {
       const moved =
         Math.hypot(localPlayer.x - lastSentX, localPlayer.y - lastSentY) > 0.05;
       const turned = localPlayer.facing !== lastSentFacing;
@@ -245,6 +277,10 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     setRemotePlayers,
     resize,
     isPaused: () => paused,
+    isMinigameOpen: () => Boolean(minigame),
+    openMinigame,
+    closeMinigame,
+    getMinigame: () => minigame,
     togglePause() {
       paused = !paused;
       if (paused) {
@@ -263,6 +299,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     destroy() {
       running = false;
       tickListeners.clear();
+      closeMinigame();
       input.destroy();
       window.removeEventListener('resize', resize);
       document.removeEventListener('fullscreenchange', resize);

@@ -851,6 +851,24 @@ body {
   pointer-events: auto;
 }
 
+.game-arbusto-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 92%;
+  max-width: none;
+  padding: 0.65rem 0.85rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 .game-fullscreen-exit {
   display: none;
 }
@@ -879,6 +897,18 @@ body {
   left: 0.75rem;
   z-index: 10000;
   width: auto;
+  pointer-events: auto;
+}
+
+#game-root:fullscreen .game-arbusto-prompt,
+#game-root:-webkit-full-screen .game-arbusto-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 10000;
+  width: 92%;
+  max-width: 960px;
   pointer-events: auto;
 }
 
