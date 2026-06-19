@@ -857,16 +857,11 @@ body {
   bottom: 0.75rem;
   transform: translateX(-50%);
   z-index: 6;
-  width: 92%;
-  max-width: none;
-  padding: 0.65rem 0.85rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.78rem;
-  line-height: 1.35;
+  width: auto;
+  max-width: calc(100% - 1rem);
   text-align: center;
   white-space: normal;
   pointer-events: auto;
-  cursor: pointer;
 }
 
 .game-snake-exit {
@@ -935,8 +930,8 @@ body {
   bottom: 0.75rem;
   transform: translateX(-50%);
   z-index: 10000;
-  width: 92%;
-  max-width: 960px;
+  width: auto;
+  max-width: min(92%, 960px);
   pointer-events: auto;
 }
 
