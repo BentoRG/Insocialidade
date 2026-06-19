@@ -282,9 +282,9 @@ export function createAuthStore({ sessionSecret }) {
     return Object.keys(users);
   }
 
-  function listActiveMembers() {
+  function listAccountMembers() {
     return Object.values(users)
-      .filter((user) => user.status === 'active')
+      .filter((user) => user.status === 'active' || user.status === 'pending')
       .map((user) => ({
         id: user.id,
         username: user.username,
@@ -303,7 +303,7 @@ export function createAuthStore({ sessionSecret }) {
     importUsers,
     resetUsers,
     listUserKeys,
-    listActiveMembers,
+    listAccountMembers,
     getUsers: () => ({ ...users }),
   };
 }

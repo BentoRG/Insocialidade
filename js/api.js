@@ -2,7 +2,7 @@
  * Cliente HTTP para a API de auth (api.gepetodigital.com).
  */
 
-import { CONFIG } from './config.js?v=auth15';
+import { CONFIG } from './config.js?v=auth16';
 
 async function apiRequest(action, payload = {}) {
   const response = await fetch(CONFIG.API_URL, {

@@ -133,7 +133,7 @@ function listMembers({ token }) {
 
   return {
     ok: true,
-    users: authStore.listActiveMembers(),
+    users: authStore.listAccountMembers(),
   };
 }
 
@@ -276,7 +276,7 @@ function publicPlayer(client) {
 function membersForRoom(room) {
   const onlineIds = new Set([...room.values()].map((client) => client.id));
 
-  return authStore.listActiveMembers().map((member) => ({
+  return authStore.listAccountMembers().map((member) => ({
     ...member,
     online: onlineIds.has(member.id),
   }));

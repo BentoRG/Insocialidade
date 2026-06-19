@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=auth15';
+import { CONFIG, resolveAsset } from './config.js?v=auth16';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas21';
@@ -29,6 +29,8 @@ let localChat = null;
 let realtime = null;
 let removeChatTick = null;
 let removeKeyboardShortcuts = null;
+/** @type {Array<{id: string, username: string, character_color: string}>} */
+let memberDirectory = [];
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -168,16 +170,40 @@ function renderUsersList(users = []) {
     name.textContent = user.username;
 
     item.append(swatch, name);
-
-    if (user.online) {
-      const online = document.createElement('span');
-      online.className = 'game-users__online';
-      online.textContent = '(online)';
-      item.appendChild(online);
-    }
-
     usersList.appendChild(item);
   }
+}
+
+function renderMemberDirectory() {
+  renderUsersList(memberDirectory);
+}
+
+function syncPresenceUsers(users = []) {
+  if (memberDirectory.length || !users.length) return;
+
+  memberDirectory = users.map(({ id, username, character_color }) => ({
+    id,
+    username,
+    character_color,
+  }));
+  renderMemberDirectory();
+}
+
+async function loadMemberDirectory(token) {
+  if (!token) {
+    memberDirectory = [];
+    renderUsersList([]);
+    return;
+  }
+
+  try {
+    const data = await apiListMembers(token);
+    memberDirectory = Array.isArray(data.users) ? data.users : [];
+  } catch {
+    memberDirectory = [];
+  }
+
+  renderMemberDirectory();
 }
 
 function waitForLayout() {
@@ -225,12 +251,7 @@ async function init() {
   localPlayer.facing = spawn.facing;
 
   const token = getToken();
-
-  if (token) {
-    apiListMembers(token)
-      .then((data) => renderUsersList(data.users))
-      .catch(() => renderUsersList([]));
-  }
+  await loadMemberDirectory(token);
 
   engine = createGameEngine({
     canvas: gameCanvas,
@@ -276,7 +297,7 @@ async function init() {
       localChat?.update();
     },
     onUsers: (users) => {
-      renderUsersList(users);
+      syncPresenceUsers(users);
     },
     onStatus: (message) => {
       if (message) setStatus(message);
