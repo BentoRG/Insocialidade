@@ -2,7 +2,7 @@
  * Cliente HTTP para a API de auth (api.gepetodigital.com).
  */
 
-import { CONFIG } from './config.js?v=auth14';
+import { CONFIG } from './config.js?v=auth15';
 
 async function apiRequest(action, payload = {}) {
   const response = await fetch(CONFIG.API_URL, {
@@ -61,4 +61,8 @@ export async function apiValidateSession(token) {
 
 export async function apiCheckStatus(username) {
   return apiRequest('status', { username });
+}
+
+export async function apiListMembers(token) {
+  return apiRequest('members', { token });
 }

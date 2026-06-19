@@ -3,9 +3,9 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=auth14';
+import { CONFIG, resolveAsset } from './config.js?v=auth15';
 import { requireAuth, logout } from './auth.js';
-import { getStoredSession } from './api.js';
+import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap } from './canvas/map.js?v=canvas21';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas39';
@@ -149,7 +149,7 @@ function renderUsersList(users = []) {
   if (!users.length) {
     const empty = document.createElement('li');
     empty.className = 'game-users__empty';
-    empty.textContent = 'Ninguém online agora.';
+    empty.textContent = 'Nenhum membro cadastrado.';
     usersList.appendChild(empty);
     return;
   }
@@ -225,6 +225,12 @@ async function init() {
   localPlayer.facing = spawn.facing;
 
   const token = getToken();
+
+  if (token) {
+    apiListMembers(token)
+      .then((data) => renderUsersList(data.users))
+      .catch(() => renderUsersList([]));
+  }
 
   engine = createGameEngine({
     canvas: gameCanvas,

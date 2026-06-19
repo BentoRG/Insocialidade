@@ -282,6 +282,17 @@ export function createAuthStore({ sessionSecret }) {
     return Object.keys(users);
   }
 
+  function listActiveMembers() {
+    return Object.values(users)
+      .filter((user) => user.status === 'active')
+      .map((user) => ({
+        id: user.id,
+        username: user.username,
+        character_color: user.character_color,
+      }))
+      .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'));
+  }
+
   return {
     verifyToken,
     register,
@@ -292,6 +303,7 @@ export function createAuthStore({ sessionSecret }) {
     importUsers,
     resetUsers,
     listUserKeys,
+    listActiveMembers,
     getUsers: () => ({ ...users }),
   };
 }

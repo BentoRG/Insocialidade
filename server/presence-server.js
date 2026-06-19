@@ -125,6 +125,18 @@ function notifyApproval({ userId, username, characterColor }) {
   });
 }
 
+function listMembers({ token }) {
+  const session = authStore.validateSession({ token });
+  if (!session.ok) {
+    return session;
+  }
+
+  return {
+    ok: true,
+    users: authStore.listActiveMembers(),
+  };
+}
+
 async function handleAuthRoute(req, res) {
   let body;
   try {
@@ -153,6 +165,9 @@ async function handleAuthRoute(req, res) {
       break;
     case 'status':
       result = authStore.checkStatus(body);
+      break;
+    case 'members':
+      result = listMembers(body);
       break;
     default:
       sendJson(res, 400, { ok: false, error: 'Ação inválida.' });
@@ -258,15 +273,13 @@ function publicPlayer(client) {
   };
 }
 
-function onlineUsersInRoom(room) {
-  return [...room.values()]
-    .map((client) => ({
-      id: client.id,
-      username: client.username,
-      character_color: client.character_color,
-      online: true,
-    }))
-    .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'));
+function membersForRoom(room) {
+  const onlineIds = new Set([...room.values()].map((client) => client.id));
+
+  return authStore.listActiveMembers().map((member) => ({
+    ...member,
+    online: onlineIds.has(member.id),
+  }));
 }
 
 function send(ws, payload) {
@@ -282,7 +295,7 @@ function broadcastRoom(room, exceptId, payload) {
 }
 
 function broadcastUsers(room) {
-  const users = onlineUsersInRoom(room);
+  const users = membersForRoom(room);
   for (const client of room.values()) {
     send(client.ws, { type: 'users', users });
   }
@@ -674,7 +687,7 @@ wss.on('connection', (ws) => {
           .filter((entry) => entry.id !== userId)
           .map(publicPlayer),
       });
-      send(ws, { type: 'users', users: onlineUsersInRoom(room) });
+      send(ws, { type: 'users', users: membersForRoom(room) });
 
       broadcastRoom(room, userId, { type: 'join', player: publicPlayer(client) });
       broadcastUsers(room);
