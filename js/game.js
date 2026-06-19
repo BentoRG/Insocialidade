@@ -31,6 +31,8 @@ let removeChatTick = null;
 let removeKeyboardShortcuts = null;
 /** @type {Array<{id: string, username: string, character_color: string}>} */
 let memberDirectory = [];
+/** @type {Set<string>} */
+let onlineUserIds = new Set();
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -170,22 +172,52 @@ function renderUsersList(users = []) {
     name.textContent = user.username;
 
     item.append(swatch, name);
+
+    if (user.online) {
+      const online = document.createElement('span');
+      online.className = 'game-users__online';
+      online.textContent = '(online)';
+      item.appendChild(online);
+    }
+
     usersList.appendChild(item);
   }
 }
 
 function renderMemberDirectory() {
-  renderUsersList(memberDirectory);
+  renderUsersList(
+    memberDirectory.map((member) => ({
+      ...member,
+      online: onlineUserIds.has(member.id),
+    }))
+  );
 }
 
 function syncPresenceUsers(users = []) {
-  if (memberDirectory.length || !users.length) return;
+  if (!users.length) {
+    onlineUserIds = new Set();
+    renderMemberDirectory();
+    return;
+  }
 
-  memberDirectory = users.map(({ id, username, character_color }) => ({
-    id,
-    username,
-    character_color,
-  }));
+  if (!memberDirectory.length) {
+    memberDirectory = users.map(({ id, username, character_color }) => ({
+      id,
+      username,
+      character_color,
+    }));
+  }
+
+  const hasOnlineFlags = users.some((user) => typeof user.online === 'boolean');
+  onlineUserIds = new Set();
+
+  for (const user of users) {
+    if (!user?.id) continue;
+    if (hasOnlineFlags ? user.online : true) {
+      onlineUserIds.add(user.id);
+    }
+  }
+
   renderMemberDirectory();
 }
 
