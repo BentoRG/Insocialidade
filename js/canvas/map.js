@@ -6,6 +6,64 @@ import { collidesAt } from './collision.js?v=canvas18';
 import { parseRegions, createRegionLookup } from './regions.js?v=canvas20';
 
 const POCO_TILE_GID = 8;
+const ARBUSTO_TILE_GID = 10;
+const OUTLINE_PX = 1;
+
+const OUTLINED_TILE_GIDS = new Set([ARBUSTO_TILE_GID]);
+
+function buildTileMask(image, tileIndex, columns, tileWidth, tileHeight) {
+  const canvas = document.createElement('canvas');
+  canvas.width = tileWidth;
+  canvas.height = tileHeight;
+  const ctx = canvas.getContext('2d');
+  const srcX = (tileIndex % columns) * tileWidth;
+  const srcY = Math.floor(tileIndex / columns) * tileHeight;
+  ctx.drawImage(image, srcX, srcY, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight);
+  const data = ctx.getImageData(0, 0, tileWidth, tileHeight).data;
+  const mask = Array.from({ length: tileHeight }, () => Array(tileWidth).fill(false));
+
+  for (let row = 0; row < tileHeight; row++) {
+    for (let col = 0; col < tileWidth; col++) {
+      const i = (row * tileWidth + col) * 4;
+      mask[row][col] = data[i + 3] > 0;
+    }
+  }
+
+  return mask;
+}
+
+function maskFilled(mask, col, row) {
+  return row >= 0 && row < mask.length && col >= 0 && col < mask[0].length && mask[row][col];
+}
+
+function drawTileOutline(ctx, destX, destY, px, mask) {
+  const t = OUTLINE_PX;
+  const height = mask.length;
+  const width = mask[0].length;
+
+  ctx.fillStyle = '#000';
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      if (!mask[row][col]) continue;
+
+      const rx = destX + col * px;
+      const ry = destY + row * px;
+
+      if (!maskFilled(mask, col, row - 1)) {
+        ctx.fillRect(rx - t, ry - t, px + 2 * t, t);
+      }
+      if (!maskFilled(mask, col, row + 1)) {
+        ctx.fillRect(rx - t, ry + px, px + 2 * t, t);
+      }
+      if (!maskFilled(mask, col - 1, row)) {
+        ctx.fillRect(rx - t, ry - t, t, px + 2 * t);
+      }
+      if (!maskFilled(mask, col + 1, row)) {
+        ctx.fillRect(rx + px, ry - t, t, px + 2 * t);
+      }
+    }
+  }
+}
 
 function resolveAssetPath(baseUrl, relativePath) {
   const base = new URL(baseUrl, window.location.href);
@@ -213,6 +271,13 @@ export async function loadMap(mapUrl) {
   const mapHeight = mapData.height;
   const firstGid = tilesetDef.firstgid;
   const columns = tilesetDef.columns;
+  const outlinedTileMasks = new Map();
+
+  for (const gid of OUTLINED_TILE_GIDS) {
+    const tileIndex = gid - firstGid;
+    if (tileIndex < 0) continue;
+    outlinedTileMasks.set(gid, buildTileMask(image, tileIndex, columns, tileWidth, tileHeight));
+  }
 
   const map = {
     tileWidth,
@@ -255,6 +320,12 @@ export async function loadMap(mapUrl) {
             const srcY = Math.floor(tileIndex / columns) * tileHeight;
             const destX = Math.round((col * tileWidth - cameraX) * scale);
             const destY = Math.round((row * tileHeight - cameraY) * scale);
+            const px = scale;
+            const mask = outlinedTileMasks.get(gid);
+
+            if (mask) {
+              drawTileOutline(ctx, destX, destY, px, mask);
+            }
 
             ctx.drawImage(
               image,
