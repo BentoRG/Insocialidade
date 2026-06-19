@@ -9,7 +9,7 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake3';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake4';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
@@ -28,6 +28,7 @@ const arbustoPromptBtn = document.getElementById('arbusto-prompt-btn');
 const snakeExitBtn = document.getElementById('snake-exit-btn');
 const snakeGameoverPanel = document.getElementById('snake-gameover-panel');
 const snakeRetryBtn = document.getElementById('snake-retry-btn');
+const snakeGameoverScore = document.getElementById('snake-gameover-score');
 const snakeGameoverExitBtn = document.getElementById('snake-gameover-exit-btn');
 
 let engine = null;
@@ -163,6 +164,9 @@ function updateSnakeControls() {
   const gameOver = minigame.getStatus?.() === 'gameover';
   if (snakeGameoverPanel) snakeGameoverPanel.hidden = !gameOver;
   if (snakeExitBtn) snakeExitBtn.hidden = gameOver;
+  if (gameOver && snakeGameoverScore) {
+    snakeGameoverScore.textContent = String(minigame.getScore?.() ?? 0);
+  }
 }
 
 function closeSnakeMinigame() {

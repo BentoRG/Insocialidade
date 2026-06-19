@@ -119,26 +119,9 @@ function lerpSegment(from, to, t) {
   };
 }
 
-function drawGameOverScreen(ctx, screenW, boardX, boardY, boardW, boardH, score) {
+function drawGameOverScreen(ctx, boardX, boardY, boardW, boardH) {
   ctx.fillStyle = GAMEOVER_PANEL_BG;
   ctx.fillRect(boardX, boardY, boardW, boardH);
-
-  const centerX = screenW / 2;
-  const centerY = boardY + boardH / 2;
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.font = 'bold 20px ui-monospace, monospace';
-  ctx.fillText('FIM DE JOGO', centerX, centerY - 42);
-
-  ctx.fillStyle = MUTED_COLOR;
-  ctx.font = '13px ui-monospace, monospace';
-  ctx.fillText('PONTOS', centerX, centerY - 8);
-
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.font = 'bold 36px ui-monospace, monospace';
-  ctx.fillText(String(score), centerX, centerY + 28);
 }
 
 export function createSnakeMinigame({ onClose } = {}) {
@@ -306,7 +289,7 @@ export function createSnakeMinigame({ onClose } = {}) {
       }
 
       if (state.status === 'gameover') {
-        drawGameOverScreen(ctx, screenW, boardX, boardY, boardW, boardH, state.score);
+        drawGameOverScreen(ctx, boardX, boardY, boardW, boardH);
       }
 
       if (state.status === 'playing') {

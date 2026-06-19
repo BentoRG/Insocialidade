@@ -883,9 +883,38 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.65rem;
-  width: min(92%, 280px);
+  justify-content: center;
+  gap: 0.75rem;
+  width: min(88%, 300px);
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(20, 20, 20, 0.92);
+  box-sizing: border-box;
   pointer-events: auto;
+}
+
+.game-snake-gameover__score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.35rem 0;
+}
+
+.game-snake-gameover__label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.game-snake-gameover__value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
 }
 
 .game-snake-gameover[hidden] {
