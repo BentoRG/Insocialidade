@@ -54,7 +54,12 @@
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
- <tile id="9"/>
+ <tile id="9">
+  <properties>
+   <property name="tipo" value="arbusto"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="10"/>
  <tile id="11"/>
  <tile id="12"/>

@@ -846,6 +846,20 @@
                          "type":"string",
                          "value":"estrada"
                         }]
+                }, 
+                {
+                 "id":9,
+                 "properties":[
+                        {
+                         "name":"colisao",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"tipo",
+                         "type":"string",
+                         "value":"arbusto"
+                        }]
                 }],
          "tilewidth":16
         }],
