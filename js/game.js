@@ -9,10 +9,11 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake5';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake6';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
+import { loadSnakeBestScore } from './snake-best-score.js';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -39,6 +40,7 @@ let realtime = null;
 let removeChatTick = null;
 let removeKeyboardShortcuts = null;
 let snakeUserId = null;
+let playerProfile = null;
 /** @type {Array<{id: string, username: string, character_color: string}>} */
 let memberDirectory = [];
 /** @type {Set<string>} */
@@ -188,13 +190,22 @@ function retrySnakeMinigame() {
   updateSnakeControls();
 }
 
-function openSnakeMinigame() {
+async function openSnakeMinigame() {
   if (!engine || !snakeUserId) return;
+
+  const token = getToken();
+  const bestScore = await loadSnakeBestScore(
+    snakeUserId,
+    token,
+    playerProfile?.snake_best_score ?? 0
+  );
 
   arbustoPromptBtn.hidden = true;
   engine.openMinigame(
     createSnakeMinigame({
       userId: snakeUserId,
+      token,
+      initialBestScore: bestScore,
       onClose: () => {
         updateSnakeControls();
         updateArbustoPrompt();
@@ -353,6 +364,7 @@ async function init() {
   const mapId = map.id || getCurrentMapId(CONFIG.MAP_URL);
   const userKey = profile.id || profile.username;
   snakeUserId = userKey;
+  playerProfile = profile;
   const spawn = resolvePlayerSpawn(map, mapId, profile, userKey);
 
   const localPlayer = createLocalPlayer({

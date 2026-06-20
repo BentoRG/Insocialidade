@@ -2,7 +2,7 @@
  * Minigame Jogo da Cobrinha — overlay no canvas principal.
  */
 
-import { getSnakeBestScore, saveSnakeBestScore } from '../snake-best-score.js';
+import { saveSnakeBestScore } from '../snake-best-score.js';
 
 const GRID_SIZE = 15;
 const MOVE_INTERVAL_MS = 155;
@@ -126,9 +126,9 @@ function drawGameOverScreen(ctx, boardX, boardY, boardW, boardH) {
   ctx.fillRect(boardX, boardY, boardW, boardH);
 }
 
-export function createSnakeMinigame({ userId, onClose } = {}) {
+export function createSnakeMinigame({ userId, token, initialBestScore = 0, onClose } = {}) {
   let state = createInitialState();
-  let bestScore = getSnakeBestScore(userId);
+  let bestScore = initialBestScore;
 
   function resetGame() {
     state = createInitialState();
@@ -137,7 +137,10 @@ export function createSnakeMinigame({ userId, onClose } = {}) {
   function handleGameOver() {
     if (state.status === 'gameover') return;
     state.status = 'gameover';
-    bestScore = saveSnakeBestScore(userId, state.score);
+    bestScore = Math.max(bestScore, state.score);
+    void saveSnakeBestScore(userId, token, state.score).then((next) => {
+      bestScore = next;
+    });
   }
 
   function stepSnake() {

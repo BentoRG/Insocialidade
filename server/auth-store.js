@@ -102,12 +102,18 @@ export function createAuthStore({ sessionSecret }) {
     }
   }
 
+  function normalizeSnakeBestScore(value) {
+    const score = Number(value);
+    return Number.isFinite(score) && score >= 0 ? Math.floor(score) : 0;
+  }
+
   function publicProfile(user) {
     return {
       id: user.id,
       username: user.username,
       character_color: user.character_color,
       status: user.status,
+      snake_best_score: normalizeSnakeBestScore(user.snake_best_score),
     };
   }
 
@@ -293,6 +299,33 @@ export function createAuthStore({ sessionSecret }) {
       .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'));
   }
 
+  async function saveSnakeBestScore({ token, score }) {
+    const userId = verifyToken(token);
+    if (!userId) {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const user = findUserById(userId);
+    if (!user || user.status !== 'active') {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const next = normalizeSnakeBestScore(score);
+    const current = normalizeSnakeBestScore(user.snake_best_score);
+    const best = Math.max(current, next);
+
+    if (best > current) {
+      user.snake_best_score = best;
+      const key = Object.keys(users).find((k) => users[k].id === userId);
+      if (key) {
+        users[key] = user;
+        await enqueuePersist();
+      }
+    }
+
+    return { ok: true, snake_best_score: best };
+  }
+
   return {
     verifyToken,
     register,
@@ -304,6 +337,7 @@ export function createAuthStore({ sessionSecret }) {
     resetUsers,
     listUserKeys,
     listAccountMembers,
+    saveSnakeBestScore,
     getUsers: () => ({ ...users }),
   };
 }

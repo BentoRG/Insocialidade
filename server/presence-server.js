@@ -169,6 +169,9 @@ async function handleAuthRoute(req, res) {
     case 'members':
       result = listMembers(body);
       break;
+    case 'snake_best':
+      result = await authStore.saveSnakeBestScore(body);
+      break;
     default:
       sendJson(res, 400, { ok: false, error: 'Ação inválida.' });
       return;
