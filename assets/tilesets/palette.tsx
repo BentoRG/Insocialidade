@@ -6,61 +6,77 @@
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
+ 
  <tile id="1">
   <properties>
    <property name="tipo" value="arvore"/>
    <property name="colisao" type="bool" value="true"/>
   </properties>
  </tile>
+ 
  <tile id="2">
   <properties>
    <property name="tipo" value="montanha"/>
    <property name="colisao" type="bool" value="true"/>
   </properties>
  </tile>
+ 
  <tile id="3">
   <properties>
    <property name="tipo" value="agua"/>
    <property name="colisao" type="bool" value="true"/>
   </properties>
  </tile>
+ 
  <tile id="4">
   <properties>
    <property name="tipo" value="ponte"/>
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
+ 
  <tile id="5">
   <properties>
    <property name="tipo" value="areia"/>
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
+ 
  <tile id="6">
   <properties>
    <property name="tipo" value="casinha"/>
    <property name="colisao" type="bool" value="true"/>
   </properties>
  </tile>
+ 
  <tile id="7">
   <properties>
    <property name="tipo" value="poco"/>
    <property name="colisao" type="bool" value="true"/>
   </properties>
  </tile>
+ 
  <tile id="8">
   <properties>
    <property name="tipo" value="estrada"/>
    <property name="colisao" type="bool" value="false"/>
   </properties>
  </tile>
+ 
  <tile id="9">
   <properties>
-   <property name="tipo" value="arbusto"/>
+   <property name="tipo" value="npc_arvore"/>
    <property name="colisao" type="bool" value="true"/>
   </properties>
  </tile>
- <tile id="10"/>
+ 
+ <tile id="10">
+  <properties>
+   <property name="tipo" value="casa_armario"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+ </tile>
+ 
  <tile id="11"/>
  <tile id="12"/>
  <tile id="13"/>
