@@ -197,7 +197,7 @@ export function drawPlayer(
   cameraX,
   cameraY,
   scale,
-  { showLabel = false, labelVariant = 'remote' } = {}
+  { showLabel = false, labelVariant = 'remote', showOutline = true } = {}
 ) {
   const screenX = (player.x - cameraX) * scale;
   const screenY = (player.y - cameraY) * scale;
@@ -212,13 +212,10 @@ export function drawPlayer(
   const legShift = player.moving ? LEG_OFFSETS[player.animFrame] : 0;
   const mask = buildSpriteMask(legShift);
 
-  if (skinStyle === 'classic') {
+  if (showOutline) {
     drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
-    drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
-  } else {
-    drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
-    drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
   }
+  drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
 
   if (showLabel && player.username) {
     ctx.font = `${Math.max(8, 6 * px)}px ui-monospace, monospace`;

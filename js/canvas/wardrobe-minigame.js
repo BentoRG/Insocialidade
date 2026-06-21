@@ -9,7 +9,7 @@ import {
   resolveSkinAppearance,
 } from '../skins.js';
 import { saveActiveSkin } from '../skin-store.js';
-import { drawPlayer } from './player.js?v=canvas30';
+import { drawPlayer } from './player.js?v=canvas31';
 
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
 const PANEL_BG = '#141414';
@@ -100,7 +100,7 @@ function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
     0,
     0,
     1,
-    { showLabel: false }
+    { showLabel: false, showOutline: false }
   );
 
   ctx.restore();
