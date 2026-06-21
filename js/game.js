@@ -8,7 +8,7 @@ import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas25';
 import { createLocalPlayer } from './canvas/player.js?v=canvas32';
-import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites1';
+import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites2';
 import { createGameEngine } from './canvas/engine.js?v=canvas42';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake12';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe9';
