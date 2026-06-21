@@ -77,9 +77,9 @@ function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
   ctx.lineWidth = selected ? 2 : 1;
   ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
 
-  const previewScale = Math.max(2, Math.floor(size / 18));
+  const previewScale = Math.max(3, Math.floor(size / 10));
   const centerX = size / 2;
-  const centerY = size / 2 + 8;
+  const centerY = size - 10;
 
   drawPlayer(
     ctx,
