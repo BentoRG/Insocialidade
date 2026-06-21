@@ -7,7 +7,7 @@
     <title>Insocialidade</title>
     <link rel="icon" type="image/png" href="logo.png" />
     <link rel="apple-touch-icon" href="logo.png" />
-    <link rel="stylesheet" href="css/style.css?v=layout21" />
+    <link rel="stylesheet" href="css/style.css?v=layout22" />
 
     <!--
       Proteção de rota: game.js chama requireAuth() antes de renderizar.
@@ -62,7 +62,7 @@
               class="btn btn--sm game-arbusto-prompt"
               hidden
             >
-              O que você achou do meu desfarce? Se quiser jogar o JOGO DA COBRINHA clique aqui…
+              O que você achou do meu desfarce? Complete as fases 2 e 3 com pontuação máxima para desbloquear skins — equipe na Casa Armário, na Vila 01. Jogue o JOGO DA COBRINHA aqui…
             </button>
             <button
               type="button"
@@ -111,6 +111,7 @@
                 <span id="snake-phase-complete-detail" class="game-snake-gameover__best">
                   Próxima fase desbloqueada
                 </span>
+                <p id="snake-phase-unlock-notice" class="game-snake-gameover__unlock" hidden></p>
               </div>
               <button type="button" id="snake-next-phase-btn" class="btn btn--sm">
                 Próxima fase
@@ -180,6 +181,6 @@
       </p>
     </footer>
 
-    <script type="module" src="js/game.js?v=game52"></script>
+    <script type="module" src="js/game.js?v=game53"></script>
   </body>
 </html>
