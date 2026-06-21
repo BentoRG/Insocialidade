@@ -107,13 +107,45 @@ export function createAuthStore({ sessionSecret }) {
     return Number.isFinite(score) && score >= 0 ? Math.floor(score) : 0;
   }
 
+  function normalizeSnakePhaseId(value) {
+    const phase = Number(value);
+    if (!Number.isFinite(phase)) return 1;
+    return Math.max(1, Math.min(3, Math.floor(phase)));
+  }
+
+  function emptySnakeBestScores() {
+    return { 1: 0, 2: 0, 3: 0 };
+  }
+
+  function normalizeSnakeBestScores(user) {
+    const scores = emptySnakeBestScores();
+    const raw = user?.snake_best_scores;
+
+    if (raw && typeof raw === 'object') {
+      for (const phase of [1, 2, 3]) {
+        scores[phase] = normalizeSnakeBestScore(raw[phase] ?? raw[String(phase)]);
+      }
+      return scores;
+    }
+
+    scores[1] = normalizeSnakeBestScore(user?.snake_best_score);
+    return scores;
+  }
+
+  function syncSnakeBestScore(user, scores) {
+    user.snake_best_scores = scores;
+    user.snake_best_score = Math.max(...Object.values(scores));
+  }
+
   function publicProfile(user) {
+    const snakeBestScores = normalizeSnakeBestScores(user);
     return {
       id: user.id,
       username: user.username,
       character_color: user.character_color,
       status: user.status,
-      snake_best_score: normalizeSnakeBestScore(user.snake_best_score),
+      snake_best_score: Math.max(...Object.values(snakeBestScores)),
+      snake_best_scores: snakeBestScores,
     };
   }
 
@@ -299,7 +331,7 @@ export function createAuthStore({ sessionSecret }) {
       .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'));
   }
 
-  async function saveSnakeBestScore({ token, score }) {
+  async function saveSnakeBestScore({ token, score, phaseId }) {
     const userId = verifyToken(token);
     if (!userId) {
       return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
@@ -310,12 +342,15 @@ export function createAuthStore({ sessionSecret }) {
       return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
     }
 
+    const phase = normalizeSnakePhaseId(phaseId);
     const next = normalizeSnakeBestScore(score);
-    const current = normalizeSnakeBestScore(user.snake_best_score);
+    const scores = normalizeSnakeBestScores(user);
+    const current = scores[phase];
     const best = Math.max(current, next);
 
     if (best > current) {
-      user.snake_best_score = best;
+      scores[phase] = best;
+      syncSnakeBestScore(user, scores);
       const key = Object.keys(users).find((k) => users[k].id === userId);
       if (key) {
         users[key] = user;
@@ -323,7 +358,7 @@ export function createAuthStore({ sessionSecret }) {
       }
     }
 
-    return { ok: true, snake_best_score: best };
+    return { ok: true, snake_best_score: user.snake_best_score, snake_best_scores: scores };
   }
 
   return {

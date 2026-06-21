@@ -9,11 +9,11 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake8';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake9';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
-import { loadSnakeBestScore } from './snake-best-score.js';
+import { loadSnakeBestScores } from './snake-best-score.js';
 import { loadSnakeProgress } from './snake-progress.js';
 
 const playerName = document.getElementById('player-name');
@@ -187,7 +187,7 @@ function updateSnakeControls() {
     snakeGameoverScore.textContent = String(minigame.getScore?.() ?? 0);
   }
   if (gameOver && snakeGameoverBest) {
-    snakeGameoverBest.textContent = `Seu recorde: ${minigame.getBestScore?.() ?? 0}`;
+    snakeGameoverBest.textContent = `Recorde nessa fase: ${minigame.getBestScore?.() ?? 0}`;
   }
 
   if (phaseComplete) {
@@ -243,8 +243,12 @@ async function openSnakeMinigame() {
   if (!engine || !snakeUserId) return;
 
   const token = getToken();
-  const [bestScore, unlockedPhase] = await Promise.all([
-    loadSnakeBestScore(snakeUserId, token, playerProfile?.snake_best_score ?? 0),
+  const [bestScores, unlockedPhase] = await Promise.all([
+    loadSnakeBestScores(
+      snakeUserId,
+      token,
+      playerProfile?.snake_best_scores ?? playerProfile?.snake_best_score ?? null
+    ),
     Promise.resolve(loadSnakeProgress(snakeUserId)),
   ]);
 
@@ -253,7 +257,7 @@ async function openSnakeMinigame() {
     createSnakeMinigame({
       userId: snakeUserId,
       token,
-      initialBestScore: bestScore,
+      initialBestScores: bestScores,
       initialUnlockedPhase: unlockedPhase,
       onClose: () => {
         updateSnakeControls();

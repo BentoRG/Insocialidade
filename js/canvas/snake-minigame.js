@@ -2,7 +2,7 @@
  * Minigame Jogo da Cobrinha — overlay no canvas principal.
  */
 
-import { saveSnakeBestScore } from '../snake-best-score.js';
+import { saveSnakeBestScore, emptySnakeBestScores } from '../snake-best-score.js';
 import { saveSnakeUnlockedPhase, SNAKE_MAX_PHASE } from '../snake-progress.js';
 
 const PHASES = [
@@ -177,14 +177,24 @@ function drawPhaseSelector(ctx, screenW, y, currentPhaseId, unlockedPhase) {
 export function createSnakeMinigame({
   userId,
   token,
-  initialBestScore = 0,
+  initialBestScores = emptySnakeBestScores(),
   initialUnlockedPhase = 1,
   onClose,
   onProgressChange,
 } = {}) {
   let unlockedPhase = Math.max(1, Math.min(SNAKE_MAX_PHASE, initialUnlockedPhase));
   let state = createInitialState(1);
-  let bestScore = initialBestScore;
+  let bestScoresByPhase = { ...emptySnakeBestScores(), ...initialBestScores };
+
+  function getPhaseBestScore(phaseId = state.phaseId) {
+    return bestScoresByPhase[phaseId] ?? 0;
+  }
+
+  function updatePhaseBestScore(phaseId, score) {
+    const next = Math.max(getPhaseBestScore(phaseId), score);
+    bestScoresByPhase = { ...bestScoresByPhase, [phaseId]: next };
+    return next;
+  }
 
   function resetGame(phaseId = state.phaseId) {
     state = createInitialState(phaseId);
@@ -200,9 +210,9 @@ export function createSnakeMinigame({
   function handleGameOver() {
     if (state.status === 'gameover') return;
     state.status = 'gameover';
-    bestScore = Math.max(bestScore, state.score);
-    void saveSnakeBestScore(userId, token, state.score).then((next) => {
-      bestScore = next;
+    updatePhaseBestScore(state.phaseId, state.score);
+    void saveSnakeBestScore(userId, token, state.phaseId, state.score).then((next) => {
+      bestScoresByPhase = { ...bestScoresByPhase, [state.phaseId]: next };
     });
   }
 
@@ -210,9 +220,9 @@ export function createSnakeMinigame({
     if (state.status === 'phase_complete') return;
     state.status = 'phase_complete';
     state.food = null;
-    bestScore = Math.max(bestScore, state.score);
-    void saveSnakeBestScore(userId, token, state.score).then((next) => {
-      bestScore = next;
+    updatePhaseBestScore(state.phaseId, state.score);
+    void saveSnakeBestScore(userId, token, state.phaseId, state.score).then((next) => {
+      bestScoresByPhase = { ...bestScoresByPhase, [state.phaseId]: next };
     });
     if (state.phaseId < SNAKE_MAX_PHASE) {
       unlockPhase(state.phaseId + 1);
@@ -244,7 +254,7 @@ export function createSnakeMinigame({
 
     if (state.food && next.x === state.food.x && next.y === state.food.y) {
       state.score += 1;
-      if (state.score > bestScore) bestScore = state.score;
+      updatePhaseBestScore(state.phaseId, state.score);
 
       if (isGridFull()) {
         handlePhaseComplete();
@@ -292,7 +302,7 @@ export function createSnakeMinigame({
     },
 
     getBestScore() {
-      return bestScore;
+      return getPhaseBestScore();
     },
 
     getPhaseId() {
@@ -404,7 +414,7 @@ export function createSnakeMinigame({
 
       ctx.fillStyle = MUTED_COLOR;
       ctx.font = '11px ui-monospace, monospace';
-      ctx.fillText(`Seu recorde: ${bestScore}`, screenW / 2, margin + 80);
+      ctx.fillText(`Recorde nessa fase: ${getPhaseBestScore()}`, screenW / 2, margin + 80);
 
       ctx.fillStyle = PANEL_BG;
       ctx.fillRect(boardX - 2, boardY - 2, boardW + 4, boardH + 4);

@@ -67,6 +67,6 @@ export async function apiListMembers(token) {
   return apiRequest('members', { token });
 }
 
-export async function apiSaveSnakeBestScore(token, score) {
-  return apiRequest('snake_best', { token, score });
+export async function apiSaveSnakeBestScore(token, phaseId, score) {
+  return apiRequest('snake_best', { token, phaseId, score });
 }
