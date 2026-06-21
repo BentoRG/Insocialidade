@@ -20,6 +20,7 @@ const SELECTED_BORDER = '#f8f3e6';
 const EMPTY_SLOT_COLOR = 'rgba(248, 243, 230, 0.18)';
 
 const SLOT_GRID_SIZE = 16;
+const DEFAULT_SLOT_LABEL = 'Skin Padrão';
 const SLOT_GAP_X = 18;
 const SLOT_LABEL_HEIGHT = 16;
 const SLOT_ROW_GAP = 10;
