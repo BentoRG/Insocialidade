@@ -63,6 +63,11 @@ function isOpposite(a, b) {
   );
 }
 
+function initialFoodCell(snake) {
+  const head = snake[0];
+  return { x: head.x + 1, y: head.y };
+}
+
 function randomEmptyCell(snake, gridSize) {
   const occupied = new Set(snake.map((segment) => `${segment.x},${segment.y}`));
   const free = [];
@@ -97,7 +102,7 @@ function createInitialState(phaseId) {
     fromSnake: cloneSnake(snake),
     direction: 'right',
     queuedDirection: 'right',
-    food: randomEmptyCell(snake, gridSize),
+    food: initialFoodCell(snake),
     score: 0,
     moveTimer: 0,
   };

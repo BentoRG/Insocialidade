@@ -9,7 +9,7 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake9';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake10';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
