@@ -20,6 +20,9 @@ const SELECTED_BORDER = '#f8f3e6';
 const EMPTY_SLOT_COLOR = 'rgba(248, 243, 230, 0.18)';
 
 const DEFAULT_SLOT_LABEL = 'Skin Padrão';
+const SLOT_GAP_X = 18;
+const SLOT_LABEL_HEIGHT = 16;
+const SLOT_ROW_GAP = 10;
 
 function buildSlots() {
   const slots = [];
@@ -188,10 +191,14 @@ export function createWardrobeMinigame({
       ctx.fillRect(0, 0, screenW, screenH);
 
       const margin = 16;
-      const slotSize = Math.min(88, Math.floor((screenW - margin * 2) / WARDROBE_COLUMNS - 10));
-      const gridW = WARDROBE_COLUMNS * slotSize + (WARDROBE_COLUMNS - 1) * 10;
+      const slotSize = Math.min(
+        88,
+        Math.floor((screenW - margin * 2 - (WARDROBE_COLUMNS - 1) * SLOT_GAP_X) / WARDROBE_COLUMNS)
+      );
+      const slotRowPitch = slotSize + SLOT_LABEL_HEIGHT + SLOT_ROW_GAP;
+      const gridW = WARDROBE_COLUMNS * slotSize + (WARDROBE_COLUMNS - 1) * SLOT_GAP_X;
       const rows = Math.ceil(WARDROBE_SLOT_COUNT / WARDROBE_COLUMNS);
-      const gridH = rows * slotSize + (rows - 1) * 10;
+      const gridH = (rows - 1) * slotRowPitch + slotSize + SLOT_LABEL_HEIGHT;
       const gridX = Math.round((screenW - gridW) / 2);
       const gridY = Math.round((screenH - gridH) / 2);
       const defaultAppearance = applyAppearance(DEFAULT_SKIN_ID);
@@ -209,8 +216,8 @@ export function createWardrobeMinigame({
       for (const slot of slots) {
         const row = Math.floor(slot.index / WARDROBE_COLUMNS);
         const col = slot.index % WARDROBE_COLUMNS;
-        const x = gridX + col * (slotSize + 10);
-        const y = gridY + row * (slotSize + 10);
+        const x = gridX + col * (slotSize + SLOT_GAP_X);
+        const y = gridY + row * slotRowPitch;
         const selected = slot.index === selectedIndex;
 
         ctx.save();
@@ -237,7 +244,7 @@ export function createWardrobeMinigame({
           ctx.font = '10px ui-monospace, monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
-          ctx.fillText(slot.label, x + slotSize / 2, y + slotSize + 4);
+          ctx.fillText(slot.label, x + slotSize / 2, y + slotSize + 6);
         }
 
         if (slot.kind === 'default' && activeSkinId === DEFAULT_SKIN_ID) {
