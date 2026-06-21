@@ -96,6 +96,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
   function openMinigame(nextMinigame) {
     closeMinigame();
     minigame = nextMinigame;
+    paused = false;
     localPlayer.moving = false;
     input.clear();
   }
@@ -175,7 +176,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       minigame.draw(ctx, screenW, screenH);
     }
 
-    if (paused) {
+    if (paused && !minigame) {
       ctx.fillStyle = PAUSE_OVERLAY;
       ctx.fillRect(0, 0, screenW, screenH);
 
@@ -221,7 +222,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       }
     }
 
-    if (minigame && !paused) {
+    if (minigame) {
       minigame.update(dt, input);
     }
 
@@ -282,6 +283,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     closeMinigame,
     getMinigame: () => minigame,
     togglePause() {
+      if (minigame) return paused;
       paused = !paused;
       if (paused) {
         localPlayer.moving = false;

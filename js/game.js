@@ -8,7 +8,7 @@ import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
-import { createGameEngine } from './canvas/engine.js?v=canvas40';
+import { createGameEngine } from './canvas/engine.js?v=canvas41';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake11';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
@@ -116,6 +116,11 @@ function updateFullscreenButton() {
 
 function updatePauseButton(engine) {
   if (!pauseBtn) return;
+  if (engine.isMinigameOpen()) {
+    pauseBtn.hidden = true;
+    return;
+  }
+  pauseBtn.hidden = false;
   const active = engine.isPaused();
   pauseBtn.textContent = active ? 'Continuar' : 'Pausar';
   pauseBtn.setAttribute('aria-pressed', String(active));
@@ -132,6 +137,7 @@ function setupKeyboardShortcuts(engine) {
     if (e.repeat || isTypingTarget(e.target)) return;
 
     if (e.code === 'Space') {
+      if (engine.isMinigameOpen()) return;
       e.preventDefault();
       engine.togglePause();
       updatePauseButton(engine);
@@ -171,6 +177,7 @@ function updateSnakeControls() {
     if (snakeExitBtn) snakeExitBtn.hidden = true;
     if (snakeGameoverPanel) snakeGameoverPanel.hidden = true;
     if (snakePhaseCompletePanel) snakePhaseCompletePanel.hidden = true;
+    updatePauseButton(engine);
     return;
   }
 
@@ -209,6 +216,8 @@ function updateSnakeControls() {
       snakeNextPhaseBtn.hidden = !minigame.hasNextPhase?.();
     }
   }
+
+  updatePauseButton(engine);
 }
 
 function closeSnakeMinigame() {
@@ -444,6 +453,7 @@ async function init() {
   });
 
   pauseBtn?.addEventListener('click', () => {
+    if (engine.isMinigameOpen()) return;
     engine.togglePause();
     updatePauseButton(engine);
   });
