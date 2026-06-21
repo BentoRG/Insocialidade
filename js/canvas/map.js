@@ -9,7 +9,7 @@ import { isWithinTileRadius } from '../proximity.js';
 const POCO_TILE_GID = 8;
 const OUTLINE_PX = 1;
 
-const OUTLINED_TILE_TIPOS = new Set(['arbusto']);
+const OUTLINED_TILE_TIPOS = new Set(['arbusto', 'casa_armario']);
 
 function buildTileMask(image, tileIndex, columns, tileWidth, tileHeight) {
   const canvas = document.createElement('canvas');
