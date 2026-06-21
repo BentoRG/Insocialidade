@@ -19,7 +19,7 @@ const MUTED_COLOR = '#e6d3a3';
 const SELECTED_BORDER = '#f8f3e6';
 const EMPTY_SLOT_COLOR = 'rgba(248, 243, 230, 0.18)';
 
-const DEFAULT_SLOT_LABEL = 'Skin Padrão';
+const SLOT_GRID_SIZE = 16;
 const SLOT_GAP_X = 18;
 const SLOT_LABEL_HEIGHT = 16;
 const SLOT_ROW_GAP = 10;
@@ -77,15 +77,19 @@ function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
   ctx.lineWidth = selected ? 2 : 1;
   ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
 
-  const previewScale = Math.max(3, Math.floor(size / 10));
-  const centerX = size / 2;
-  const centerY = size - 10;
+  const pixelScale = size / SLOT_GRID_SIZE;
+  const feetX = SLOT_GRID_SIZE / 2;
+  const feetY = SLOT_GRID_SIZE - 4;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(pixelScale, pixelScale);
 
   drawPlayer(
     ctx,
     {
-      x: centerX / previewScale,
-      y: centerY / previewScale,
+      x: feetX,
+      y: feetY,
       color,
       skinStyle: style,
       facing: 'down',
@@ -94,9 +98,11 @@ function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
     },
     0,
     0,
-    previewScale,
+    1,
     { showLabel: false }
   );
+
+  ctx.restore();
 }
 
 function drawEmptySlot(ctx, x, y, size, selected) {
