@@ -4,10 +4,8 @@
 
 import {
   DEFAULT_SKIN_ID,
-  SKIN_CATALOG,
   WARDROBE_COLUMNS,
   WARDROBE_SLOT_COUNT,
-  isSkinUnlocked,
   resolveSkinAppearance,
 } from '../skins.js';
 import { saveActiveSkin } from '../skin-store.js';
@@ -19,32 +17,29 @@ const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
 const TEXT_COLOR = '#f8f3e6';
 const MUTED_COLOR = '#e6d3a3';
 const SELECTED_BORDER = '#f8f3e6';
-const LOCKED_COLOR = 'rgba(248, 243, 230, 0.35)';
+const EMPTY_SLOT_COLOR = 'rgba(248, 243, 230, 0.18)';
 
-function buildSlots(unlockedSkins) {
+const DEFAULT_SLOT_LABEL = 'Skin Padrão';
+
+function buildSlots() {
   const slots = [];
 
   for (let index = 0; index < WARDROBE_SLOT_COUNT; index++) {
-    const catalogSkin = SKIN_CATALOG[index] || null;
-    if (catalogSkin) {
+    if (index === 0) {
       slots.push({
         index,
-        skinId: catalogSkin.id,
-        label: catalogSkin.label,
-        style: catalogSkin.style,
-        unlocked: isSkinUnlocked(catalogSkin.id, unlockedSkins),
-        placeholder: false,
+        kind: 'default',
+        skinId: DEFAULT_SKIN_ID,
+        label: DEFAULT_SLOT_LABEL,
       });
       continue;
     }
 
     slots.push({
       index,
+      kind: 'empty',
       skinId: null,
-      label: 'Em breve',
-      style: 'classic',
-      unlocked: false,
-      placeholder: true,
+      label: '',
     });
   }
 
@@ -72,41 +67,41 @@ function directionFromInput(input) {
   return dy > 0 ? 'down' : 'up';
 }
 
-function drawSlotPreview(ctx, x, y, size, color, style, selected, unlocked, placeholder) {
+function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
   ctx.fillStyle = selected ? '#1f1f1f' : PANEL_BG;
   ctx.fillRect(x, y, size, size);
-  ctx.strokeStyle = selected ? SELECTED_BORDER : unlocked ? PANEL_BORDER : LOCKED_COLOR;
+  ctx.strokeStyle = selected ? SELECTED_BORDER : PANEL_BORDER;
   ctx.lineWidth = selected ? 2 : 1;
   ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
 
-  if (placeholder || !unlocked) {
-    ctx.fillStyle = LOCKED_COLOR;
-    ctx.font = '18px ui-monospace, monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🔒', x + size / 2, y + size / 2 - 8);
-    return;
-  }
-
   const previewScale = Math.max(2, Math.floor(size / 18));
-  const centerX = x + size / 2;
-  const centerY = y + size / 2 + 8;
+  const centerX = size / 2;
+  const centerY = size / 2 + 8;
+
   drawPlayer(
     ctx,
     {
-      x: centerX,
-      y: centerY,
+      x: centerX / previewScale,
+      y: centerY / previewScale,
       color,
       skinStyle: style,
       facing: 'down',
       moving: false,
       animFrame: 0,
     },
-    centerX,
-    centerY,
+    0,
+    0,
     previewScale,
     { showLabel: false }
   );
+}
+
+function drawEmptySlot(ctx, x, y, size, selected) {
+  ctx.fillStyle = selected ? '#1a1a1a' : PANEL_BG;
+  ctx.fillRect(x, y, size, size);
+  ctx.strokeStyle = selected ? SELECTED_BORDER : EMPTY_SLOT_COLOR;
+  ctx.lineWidth = selected ? 2 : 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
 }
 
 export function createWardrobeMinigame({
@@ -120,12 +115,9 @@ export function createWardrobeMinigame({
 } = {}) {
   let activeSkinId = initialActiveSkinId;
   let unlockedSkins = [...initialUnlockedSkins];
-  let slots = buildSlots(unlockedSkins);
-  let selectedIndex = Math.max(
-    0,
-    slots.findIndex((slot) => slot.skinId === activeSkinId)
-  );
-  let statusMessage = 'Setas para escolher · Enter para equipar';
+  const slots = buildSlots();
+  let selectedIndex = 0;
+  let statusMessage = 'Setas para escolher · Enter para equipar a skin padrão';
   let moveCooldown = 0;
 
   function applyAppearance(skinId) {
@@ -134,8 +126,8 @@ export function createWardrobeMinigame({
 
   async function equipSelectedSlot() {
     const slot = slotAt(slots, selectedIndex);
-    if (!slot.unlocked || !slot.skinId || slot.placeholder) {
-      statusMessage = 'Esta skin ainda não está disponível.';
+    if (slot.kind !== 'default' || !slot.skinId) {
+      statusMessage = 'Este slot está vazio.';
       return;
     }
 
@@ -151,9 +143,8 @@ export function createWardrobeMinigame({
 
     activeSkinId = saved.activeSkinId;
     unlockedSkins = saved.unlockedSkins;
-    slots = buildSlots(unlockedSkins);
     statusMessage =
-      slot.skinId === saved.activeSkinId ? 'Skin equipada!' : 'Não foi possível equipar.';
+      slot.skinId === saved.activeSkinId ? 'Skin Padrão equipada!' : 'Não foi possível equipar.';
 
     onEquip?.({
       skinId: saved.activeSkinId,
@@ -203,6 +194,7 @@ export function createWardrobeMinigame({
       const gridH = rows * slotSize + (rows - 1) * 10;
       const gridX = Math.round((screenW - gridW) / 2);
       const gridY = Math.round((screenH - gridH) / 2);
+      const defaultAppearance = applyAppearance(DEFAULT_SKIN_ID);
 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -219,40 +211,50 @@ export function createWardrobeMinigame({
         const col = slot.index % WARDROBE_COLUMNS;
         const x = gridX + col * (slotSize + 10);
         const y = gridY + row * (slotSize + 10);
-        const appearance = slot.skinId
-          ? applyAppearance(slot.skinId)
-          : { color: registrationColor, style: 'classic' };
+        const selected = slot.index === selectedIndex;
 
-        drawSlotPreview(
-          ctx,
-          x,
-          y,
-          slotSize,
-          appearance.color,
-          appearance.style,
-          slot.index === selectedIndex,
-          slot.unlocked,
-          slot.placeholder
-        );
+        ctx.save();
+        ctx.translate(x, y);
 
-        ctx.fillStyle = slot.unlocked ? MUTED_COLOR : LOCKED_COLOR;
-        ctx.font = '10px ui-monospace, monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(slot.label, x + slotSize / 2, y + slotSize + 4);
+        if (slot.kind === 'default') {
+          drawDefaultSkinPreview(
+            ctx,
+            0,
+            0,
+            slotSize,
+            defaultAppearance.color,
+            defaultAppearance.style,
+            selected
+          );
+        } else {
+          drawEmptySlot(ctx, 0, 0, slotSize, selected);
+        }
 
-        if (slot.skinId && slot.skinId === activeSkinId) {
+        ctx.restore();
+
+        if (slot.label) {
+          ctx.fillStyle = MUTED_COLOR;
+          ctx.font = '10px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(slot.label, x + slotSize / 2, y + slotSize + 4);
+        }
+
+        if (slot.kind === 'default' && activeSkinId === DEFAULT_SKIN_ID) {
           ctx.fillStyle = TEXT_COLOR;
           ctx.font = '9px ui-monospace, monospace';
-          ctx.fillText('Equipada', x + slotSize / 2, y - 12);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText('Equipada', x + slotSize / 2, y - 4);
         }
       }
 
       ctx.fillStyle = MUTED_COLOR;
       ctx.font = '11px ui-monospace, monospace';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
       ctx.fillText(statusMessage, screenW / 2, gridY + gridH + 18);
-      ctx.fillText('Tecla 1 seleciona a skin padrão', screenW / 2, gridY + gridH + 34);
+      ctx.fillText('Tecla 1 seleciona a Skin Padrão', screenW / 2, gridY + gridH + 34);
 
       ctx.restore();
     },

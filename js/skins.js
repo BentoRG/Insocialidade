@@ -5,7 +5,7 @@
 export const DEFAULT_SKIN_ID = 'default';
 
 export const SKIN_CATALOG = [
-  { id: DEFAULT_SKIN_ID, label: 'Padrão', style: 'classic' },
+  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', style: 'classic' },
 ];
 
 export const WARDROBE_SLOT_COUNT = 8;
