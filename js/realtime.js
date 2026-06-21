@@ -96,6 +96,17 @@ export function createRealtimePresence({
       return;
     }
 
+    if (msg.type === 'skin' && msg.id) {
+      const existing = players.get(msg.id) || { id: msg.id };
+      players.set(msg.id, {
+        ...existing,
+        active_skin_id: msg.active_skin_id || existing.active_skin_id || 'default',
+        character_color: msg.character_color || existing.character_color,
+      });
+      emitPlayers();
+      return;
+    }
+
     if (msg.type === 'chat_opened') {
       onChatOpened?.(msg);
       return;
@@ -148,6 +159,7 @@ export function createRealtimePresence({
         map: mapId,
         username: profile.username,
         character_color: profile.character_color,
+        active_skin_id: profile.active_skin_id || 'default',
         x: spawn.x,
         y: spawn.y,
         facing: spawn.facing || 'down',
@@ -198,6 +210,15 @@ export function createRealtimePresence({
     return send({ type: 'chat_send', peerId, text, replyTo, x, y, tileWidth, tileHeight });
   }
 
+  function sendSkinUpdate({ active_skin_id, character_color }) {
+    if (!joined) return false;
+    return send({
+      type: 'skin',
+      active_skin_id: active_skin_id || 'default',
+      character_color,
+    });
+  }
+
   connect();
 
   return {
@@ -205,6 +226,7 @@ export function createRealtimePresence({
     openChat,
     acceptChat,
     sendChat,
+    sendSkinUpdate,
     destroy() {
       stopped = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);

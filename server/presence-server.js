@@ -272,6 +272,7 @@ function publicPlayer(client) {
     id: client.id,
     username: client.username,
     character_color: client.character_color,
+    active_skin_id: client.active_skin_id || 'default',
     x: client.x,
     y: client.y,
     facing: client.facing,
@@ -629,7 +630,7 @@ function handleChatSend(client, msg) {
   deliverChatMessage(client.id, peerId, message);
 }
 
-/** @typedef {{ ws: import('ws').WebSocket, id: string, roomId: string, username: string, character_color: string, x: number, y: number, facing: string, moving: boolean, lastSeen: number }} ClientState */
+/** @typedef {{ ws: import('ws').WebSocket, id: string, roomId: string, username: string, character_color: string, active_skin_id: string, x: number, y: number, facing: string, moving: boolean, lastSeen: number }} ClientState */
 /** @typedef {{ participants: string[], messages: object[], updatedAt: number, nextMsgId: number }} ChatRoom */
 /** @typedef {{ participants: string[], requestedBy: Set<string>, updatedAt: number }} ChatRequest */
 
@@ -679,6 +680,7 @@ wss.on('connection', (ws) => {
         roomId,
         username: String(msg.username || userId),
         character_color: String(msg.character_color || '#4a4a4a'),
+        active_skin_id: String(msg.active_skin_id || 'default'),
         x: Number(msg.x) || 0,
         y: Number(msg.y) || 0,
         facing: String(msg.facing || 'down'),
@@ -727,6 +729,23 @@ wss.on('connection', (ws) => {
         facing: client.facing,
         moving: client.moving,
         t: client.lastSeen,
+      });
+      return;
+    }
+
+    if (msg.type === 'skin') {
+      client.active_skin_id = String(msg.active_skin_id || client.active_skin_id || 'default');
+      if (msg.character_color) {
+        client.character_color = String(msg.character_color);
+      }
+      client.lastSeen = Date.now();
+
+      const room = getRoom(client.roomId);
+      broadcastRoom(room, client.id, {
+        type: 'skin',
+        id: client.id,
+        active_skin_id: client.active_skin_id,
+        character_color: client.character_color,
       });
       return;
     }

@@ -10,7 +10,7 @@ import {
   updateLocalPlayer,
   updateRemotePlayer,
   drawPlayer,
-} from './player.js?v=canvas31';
+} from './player.js?v=canvas32';
 
 const MOVE_SPEED = 70;
 const BASE_ZOOM = 3;
@@ -136,6 +136,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
           color: data.character_color,
           username: data.username,
           facing: data.facing,
+          skinId: data.active_skin_id || 'default',
         });
         remotePlayers.set(data.id, remote);
       }

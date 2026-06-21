@@ -77,7 +77,6 @@ export async function saveActiveSkin(userId, token, activeSkinId, profile = {}) 
     active_skin_id: nextState.activeSkinId,
     unlocked_skins: nextState.unlockedSkins,
     character_color: nextState.characterColor,
-    skin_style: nextState.skinStyle,
   });
 
   if (token) {
@@ -96,7 +95,6 @@ export async function saveActiveSkin(userId, token, activeSkinId, profile = {}) 
         active_skin_id: saved.activeSkinId,
         unlocked_skins: saved.unlockedSkins,
         character_color: saved.characterColor,
-        skin_style: saved.skinStyle,
       });
       updateStoredProfileSkin({
         registration_color: saved.registrationColor,

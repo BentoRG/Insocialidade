@@ -3,17 +3,18 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=auth17';
+import { CONFIG, resolveAsset } from './config.js?v=auth18';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas25';
-import { createLocalPlayer } from './canvas/player.js?v=canvas31';
-import { createGameEngine } from './canvas/engine.js?v=canvas41';
+import { createLocalPlayer } from './canvas/player.js?v=canvas32';
+import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites1';
+import { createGameEngine } from './canvas/engine.js?v=canvas42';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake12';
-import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe7';
+import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe8';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
-import { createRealtimePresence } from './realtime.js?v=rt8';
+import { createRealtimePresence } from './realtime.js?v=rt9';
 import { loadSnakeBestScores } from './snake-best-score.js';
 import { loadSnakeProgress } from './snake-progress.js';
 import { loadSkinState } from './skin-store.js';
@@ -264,12 +265,12 @@ function updateSnakeControls() {
   updatePauseButton(engine);
 }
 
-function applyLocalAppearance({ characterColor, skinStyle, skinId }) {
+function applyLocalAppearance({ characterColor, skinId }) {
   const localPlayer = engine?.getLocalPlayer();
   if (!localPlayer) return;
 
   if (characterColor) localPlayer.color = characterColor;
-  if (skinStyle) localPlayer.skinStyle = skinStyle;
+  if (skinId) localPlayer.skinId = skinId;
 
   if (playerProfile) {
     playerProfile.character_color = characterColor || playerProfile.character_color;
@@ -278,6 +279,13 @@ function applyLocalAppearance({ characterColor, skinStyle, skinId }) {
 
   if (playerAvatar && characterColor) {
     playerAvatar.style.backgroundColor = characterColor;
+  }
+
+  if (realtime && skinId) {
+    realtime.sendSkinUpdate({
+      active_skin_id: skinId,
+      character_color: characterColor || localPlayer.color,
+    });
   }
 }
 
@@ -302,8 +310,8 @@ function openWardrobe() {
       registrationColor: skinState.registrationColor,
       initialActiveSkinId: skinState.activeSkinId,
       initialUnlockedSkins: skinState.unlockedSkins,
-      onEquip: ({ skinId, skinStyle, characterColor }) => {
-        applyLocalAppearance({ characterColor, skinStyle, skinId });
+      onEquip: ({ skinId, characterColor }) => {
+        applyLocalAppearance({ characterColor, skinId });
       },
       onClose: () => {
         updateWardrobeControls();
@@ -520,6 +528,7 @@ async function init() {
 
   const map = await loadMap(resolveAsset(CONFIG.MAP_URL, { bust: true }));
   loadedMap = map;
+  await loadPlayerSpriteSheet();
   const mapId = map.id || getCurrentMapId(CONFIG.MAP_URL);
   snakeUserId = userKey;
   playerProfile = profile;
@@ -532,7 +541,7 @@ async function init() {
     x: spawn.x,
     y: spawn.y,
     color: skinState.characterColor,
-    skinStyle: skinState.skinStyle,
+    skinId: skinState.activeSkinId,
     username: profile.username,
   });
   localPlayer.facing = spawn.facing;

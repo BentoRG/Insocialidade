@@ -1,23 +1,32 @@
 /**
- * Sprite procedural pixelado — quadrado com pernas.
+ * Sprite procedural pixelado — fallback + desenho via sprite sheet.
  */
 
 import { moveWithCollision } from './collision.js?v=canvas18';
+import { resolveSkinAppearance } from '../skins.js';
+import {
+  drawSkinFrame,
+  getPlayerAnimFrame,
+  getPlayerSpriteSheet,
+  FRAME_W,
+  FRAME_H,
+} from './player-sprites.js?v=sprites1';
 
 const BODY_PX = 6;
 const LEG_H_PX = 2;
 const SPRITE_H_PX = BODY_PX + LEG_H_PX;
-
 const LEG_OFFSETS = [0, 1];
 const OUTLINE_PX = 1;
 
-export function createLocalPlayer({ x, y, color, username, skinStyle = 'classic' }) {
+export { FRAME_W, FRAME_H, SPRITE_H_PX as PLAYER_SPRITE_H };
+
+export function createLocalPlayer({ x, y, color, username, skinId = 'default' }) {
   return {
     id: 'local',
     x,
     y,
     color,
-    skinStyle,
+    skinId,
     username,
     facing: 'down',
     moving: false,
@@ -29,7 +38,7 @@ export function createLocalPlayer({ x, y, color, username, skinStyle = 'classic'
 const TELEPORT_THRESHOLD = 96;
 const REMOTE_LERP_RATE = 36;
 
-export function createRemotePlayer({ id, x, y, color, username, facing, skinStyle = 'classic' }) {
+export function createRemotePlayer({ id, x, y, color, username, facing, skinId = 'default' }) {
   return {
     id,
     x,
@@ -37,7 +46,7 @@ export function createRemotePlayer({ id, x, y, color, username, facing, skinStyl
     targetX: x,
     targetY: y,
     color,
-    skinStyle,
+    skinId,
     username,
     facing: facing || 'down',
     targetFacing: facing || 'down',
@@ -48,7 +57,6 @@ export function createRemotePlayer({ id, x, y, color, username, facing, skinStyl
   };
 }
 
-/** Atualiza alvo de um jogador remoto (WebSocket em tempo real). */
 export function syncRemotePlayer(remote, data) {
   const x = Number(data.x);
   const y = Number(data.y);
@@ -61,6 +69,13 @@ export function syncRemotePlayer(remote, data) {
   remote.targetY = y;
   remote.targetFacing = facing;
   remote.moving = moving;
+
+  if (data.active_skin_id) {
+    remote.skinId = data.active_skin_id;
+  }
+  if (data.character_color) {
+    remote.color = data.character_color;
+  }
 
   if (!remote.initialized) {
     remote.x = x;
@@ -191,6 +206,23 @@ function drawSpriteFill(ctx, originX, originY, px, mask, color) {
   }
 }
 
+function drawProceduralPlayer(ctx, player, cameraX, cameraY, scale, { showOutline = true } = {}) {
+  const screenX = (player.x - cameraX) * scale;
+  const screenY = (player.y - cameraY) * scale;
+  const px = scale;
+  const bodyColor = player.color || '#222233';
+  const bodyW = BODY_PX * px;
+  const bodyX = screenX - bodyW / 2;
+  const bodyY = screenY - SPRITE_H_PX * px;
+  const legShift = player.moving ? LEG_OFFSETS[player.animFrame] : 0;
+  const mask = buildSpriteMask(legShift);
+
+  if (showOutline) {
+    drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
+  }
+  drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
+}
+
 export function drawPlayer(
   ctx,
   player,
@@ -201,23 +233,30 @@ export function drawPlayer(
 ) {
   const screenX = (player.x - cameraX) * scale;
   const screenY = (player.y - cameraY) * scale;
-  const px = scale;
+  const appearance = resolveSkinAppearance(player.skinId || 'default', player.color || '#4a4a4a');
+  const sheet = getPlayerSpriteSheet();
+  const animFrame = getPlayerAnimFrame(player);
+  const drawn = sheet
+    ? drawSkinFrame(ctx, {
+        sheet,
+        skinIndex: appearance.sheetIndex,
+        animFrame,
+        feetX: screenX,
+        feetY: screenY,
+        scale,
+        color: appearance.color,
+        tint: appearance.tint,
+        showOutline,
+      })
+    : false;
 
-  const bodyColor = player.color || '#222233';
-  const skinStyle = player.skinStyle || 'classic';
-  const bodyW = BODY_PX * px;
-  const bodyX = screenX - bodyW / 2;
-  const bodyY = screenY - SPRITE_H_PX * px;
-
-  const legShift = player.moving ? LEG_OFFSETS[player.animFrame] : 0;
-  const mask = buildSpriteMask(legShift);
-
-  if (showOutline) {
-    drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
+  if (!drawn) {
+    drawProceduralPlayer(ctx, player, cameraX, cameraY, scale, { showOutline });
   }
-  drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
 
   if (showLabel && player.username) {
+    const px = scale;
+    const bodyY = screenY - SPRITE_H_PX * px;
     ctx.font = `${Math.max(8, 6 * px)}px ui-monospace, monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';

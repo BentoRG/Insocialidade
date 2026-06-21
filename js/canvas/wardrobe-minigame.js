@@ -9,7 +9,7 @@ import {
   resolveSkinAppearance,
 } from '../skins.js';
 import { saveActiveSkin } from '../skin-store.js';
-import { drawPlayer } from './player.js?v=canvas31';
+import { drawSkinFrame, getPlayerSpriteSheet } from './player-sprites.js?v=sprites1';
 
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
 const PANEL_BG = '#141414';
@@ -71,7 +71,7 @@ function directionFromInput(input) {
   return dy > 0 ? 'down' : 'up';
 }
 
-function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
+function drawDefaultSkinPreview(ctx, x, y, size, appearance, selected) {
   ctx.fillStyle = selected ? '#1f1f1f' : PANEL_BG;
   ctx.fillRect(x, y, size, size);
   ctx.strokeStyle = selected ? SELECTED_BORDER : PANEL_BORDER;
@@ -81,27 +81,25 @@ function drawDefaultSkinPreview(ctx, x, y, size, color, style, selected) {
   const pixelScale = size / SLOT_GRID_SIZE;
   const feetX = SLOT_GRID_SIZE / 2;
   const feetY = SLOT_GRID_SIZE - 4;
+  const sheet = getPlayerSpriteSheet();
 
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(pixelScale, pixelScale);
 
-  drawPlayer(
-    ctx,
-    {
-      x: feetX,
-      y: feetY,
-      color,
-      skinStyle: style,
-      facing: 'down',
-      moving: false,
+  if (sheet) {
+    drawSkinFrame(ctx, {
+      sheet,
+      skinIndex: appearance.sheetIndex,
       animFrame: 0,
-    },
-    0,
-    0,
-    1,
-    { showLabel: false, showOutline: false }
-  );
+      feetX,
+      feetY,
+      scale: 1,
+      color: appearance.color,
+      tint: appearance.tint,
+      showOutline: false,
+    });
+  }
 
   ctx.restore();
 }
@@ -158,7 +156,6 @@ export function createWardrobeMinigame({
 
     onEquip?.({
       skinId: saved.activeSkinId,
-      skinStyle: saved.skinStyle,
       characterColor: saved.characterColor,
     });
   }
@@ -236,8 +233,7 @@ export function createWardrobeMinigame({
             0,
             0,
             slotSize,
-            defaultAppearance.color,
-            defaultAppearance.style,
+            defaultAppearance,
             selected
           );
         } else {

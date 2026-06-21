@@ -1,11 +1,12 @@
 /**
- * Catálogo de skins do personagem — extensível para novos estilos.
+ * Catálogo de skins do personagem — extensível via sprite sheet.
  */
 
 export const DEFAULT_SKIN_ID = 'default';
+const SKIN_SLOT_COUNT = 20;
 
 export const SKIN_CATALOG = [
-  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', style: 'classic' },
+  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: true },
 ];
 
 export const WARDROBE_SLOT_COUNT = 8;
@@ -21,18 +22,21 @@ export function isSkinUnlocked(skinId, unlockedSkins) {
 
 export function resolveSkinAppearance(skinId, registrationColor) {
   const skin = getSkinById(skinId);
+  const sheetIndex = Math.max(0, Math.min(SKIN_SLOT_COUNT - 1, skin.sheetIndex ?? 0));
 
-  if (skin.id === DEFAULT_SKIN_ID || skin.colorFromProfile) {
+  if (skin.tint || skin.id === DEFAULT_SKIN_ID) {
     return {
-      skinId: DEFAULT_SKIN_ID,
-      style: skin.style || 'classic',
+      skinId: skin.id,
+      sheetIndex,
+      tint: true,
       color: registrationColor,
     };
   }
 
   return {
     skinId: skin.id,
-    style: skin.style || 'classic',
+    sheetIndex,
+    tint: false,
     color: skin.color || registrationColor,
   };
 }
@@ -56,6 +60,7 @@ export function normalizeSkinState(profile = {}) {
     activeSkinId,
     unlockedSkins,
     characterColor: appearance.color,
-    skinStyle: appearance.style,
+    sheetIndex: appearance.sheetIndex,
+    tint: appearance.tint,
   };
 }
