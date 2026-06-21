@@ -261,7 +261,6 @@ export function createWardrobeMinigame({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(statusMessage, screenW / 2, gridY + gridH + 18);
-      ctx.fillText('Tecla 1 seleciona a Skin Padrão', screenW / 2, gridY + gridH + 34);
 
       ctx.restore();
     },
