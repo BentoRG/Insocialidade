@@ -11,7 +11,7 @@ const PHASES = [
   { id: 3, gridSize: 18 },
 ];
 
-const MOVE_INTERVAL_MS = 155;
+const MOVE_INTERVAL_MS = 220;
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
 const PANEL_BG = '#141414';
 const GRID_LINE = 'rgba(248, 243, 230, 0.08)';
