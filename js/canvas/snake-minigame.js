@@ -65,7 +65,7 @@ function isOpposite(a, b) {
 
 function initialFoodCell(snake) {
   const head = snake[0];
-  return { x: head.x + 1, y: head.y };
+  return { x: head.x + 2, y: head.y };
 }
 
 function randomEmptyCell(snake, gridSize) {
