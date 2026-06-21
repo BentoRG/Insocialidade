@@ -35,23 +35,6 @@ export function getSkinLabel(skinId) {
 
 export const WARDROBE_EQUIP_LOCATION = 'Casa Armário, na Vila 01';
 
-export const SNAKE_MINIGAME_SKIN_HINT_LINES = [
-  'Fase 2 com pontuação máxima: desbloqueia Stick Man.',
-  'Fase 3 com pontuação máxima: desbloqueia Desfarce de Árvore.',
-  `Equipe suas skins na ${WARDROBE_EQUIP_LOCATION}.`,
-];
-
-export function formatSnakeSkinUnlockMessage(skinIds) {
-  if (!Array.isArray(skinIds) || !skinIds.length) return '';
-  const labels = skinIds.map(getSkinLabel).join(' · ');
-  const suffix = skinIds.length > 1 ? 's' : '';
-  return `${labels} desbloqueado${suffix}! Equipe na ${WARDROBE_EQUIP_LOCATION}.`;
-}
-
-export function getSnakeProximityPromptText() {
-  return `O que você achou do meu desfarce? Complete as fases 2 e 3 com pontuação máxima para desbloquear skins — equipe na ${WARDROBE_EQUIP_LOCATION}. Jogue o JOGO DA COBRINHA aqui…`;
-}
-
 export function isSkinUnlocked(skinId, unlockedSkins) {
   return Array.isArray(unlockedSkins) && unlockedSkins.includes(skinId);
 }

@@ -10,7 +10,7 @@ import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas
 import { createLocalPlayer } from './canvas/player.js?v=canvas32';
 import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites2';
 import { createGameEngine } from './canvas/engine.js?v=canvas42';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake14';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake15';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe9';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
@@ -18,7 +18,6 @@ import { createRealtimePresence } from './realtime.js?v=rt9';
 import { loadSnakeBestScores } from './snake-best-score.js?v=snakebest3';
 import { loadSnakeProgress } from './snake-progress.js?v=snakeprog2';
 import { loadSkinState } from './skin-store.js?v=skinstore2';
-import { formatSnakeSkinUnlockMessage } from './skins.js';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -43,7 +42,6 @@ const snakePhaseCompletePanel = document.getElementById('snake-phase-complete-pa
 const snakePhaseCompleteTitle = document.getElementById('snake-phase-complete-title');
 const snakePhaseCompleteScore = document.getElementById('snake-phase-complete-score');
 const snakePhaseCompleteDetail = document.getElementById('snake-phase-complete-detail');
-const snakePhaseUnlockNotice = document.getElementById('snake-phase-unlock-notice');
 const snakeNextPhaseBtn = document.getElementById('snake-next-phase-btn');
 const snakePhaseRetryBtn = document.getElementById('snake-phase-retry-btn');
 const snakePhaseExitBtn = document.getElementById('snake-phase-exit-btn');
@@ -223,10 +221,6 @@ function updateSnakeControls() {
     if (snakeExitBtn) snakeExitBtn.hidden = true;
     if (snakeGameoverPanel) snakeGameoverPanel.hidden = true;
     if (snakePhaseCompletePanel) snakePhaseCompletePanel.hidden = true;
-    if (snakePhaseUnlockNotice) {
-      snakePhaseUnlockNotice.hidden = true;
-      snakePhaseUnlockNotice.textContent = '';
-    }
     updateWardrobeControls();
     updateProximityPrompts();
     return;
@@ -262,16 +256,6 @@ function updateSnakeControls() {
         phaseId >= 3
           ? `Grade ${gridSize}×${gridSize} completa — todas as fases concluídas!`
           : `Grade ${gridSize}×${gridSize} completa — próxima fase desbloqueada`;
-    }
-    if (snakePhaseUnlockNotice) {
-      const unlocked = minigame.getLastUnlockedSkins?.() ?? [];
-      if (unlocked.length) {
-        snakePhaseUnlockNotice.hidden = false;
-        snakePhaseUnlockNotice.textContent = formatSnakeSkinUnlockMessage(unlocked);
-      } else {
-        snakePhaseUnlockNotice.hidden = true;
-        snakePhaseUnlockNotice.textContent = '';
-      }
     }
     if (snakeNextPhaseBtn) {
       snakeNextPhaseBtn.hidden = !minigame.hasNextPhase?.();
@@ -390,12 +374,9 @@ async function openSnakeMinigame() {
       token,
       initialBestScores: bestScores,
       initialUnlockedPhase: unlockedPhase,
-      onSkinUnlock: ({ unlockedSkins, newlyUnlockedSkins }) => {
+      onSkinUnlock: ({ unlockedSkins }) => {
         if (playerProfile && unlockedSkins) {
           playerProfile.unlocked_skins = unlockedSkins;
-        }
-        if (newlyUnlockedSkins?.length) {
-          setStatus(formatSnakeSkinUnlockMessage(newlyUnlockedSkins));
         }
         updateSnakeControls();
       },

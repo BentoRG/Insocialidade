@@ -4,10 +4,6 @@
 
 import { saveSnakeBestScore, emptySnakeBestScores } from '../snake-best-score.js';
 import { saveSnakeUnlockedPhase, SNAKE_MAX_PHASE, getSnakePhaseMaxScore } from '../snake-progress.js';
-import {
-  SNAKE_MINIGAME_SKIN_HINT_LINES,
-  formatSnakeSkinUnlockMessage,
-} from '../skins.js';
 
 const PHASES = [
   { id: 1, gridSize: 6 },
@@ -147,17 +143,6 @@ function lerpSegment(from, to, t) {
 function drawGameOverScreen(ctx, boardX, boardY, boardW, boardH) {
   ctx.fillStyle = GAMEOVER_PANEL_BG;
   ctx.fillRect(boardX, boardY, boardW, boardH);
-}
-
-function drawSkinRewardHint(ctx, screenW, startY) {
-  ctx.fillStyle = MUTED_COLOR;
-  ctx.font = '10px ui-monospace, monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-
-  SNAKE_MINIGAME_SKIN_HINT_LINES.forEach((line, index) => {
-    ctx.fillText(line, screenW / 2, startY + index * 12);
-  });
 }
 
 function drawPhaseSelector(ctx, screenW, y, currentPhaseId, unlockedPhase) {
@@ -419,7 +404,7 @@ export function createSnakeMinigame({
       ctx.fillRect(0, 0, screenW, screenH);
 
       const margin = 16;
-      const headerH = 132;
+      const headerH = 96;
       const footerH = 28;
       const maxBoardW = screenW - margin * 2;
       const maxBoardH = screenH - margin * 2 - headerH - footerH;
@@ -462,7 +447,6 @@ export function createSnakeMinigame({
       ctx.fillStyle = MUTED_COLOR;
       ctx.font = '11px ui-monospace, monospace';
       ctx.fillText(`Recorde nessa fase: ${getPhaseBestScore()}`, screenW / 2, margin + 80);
-      drawSkinRewardHint(ctx, screenW, margin + 96);
 
       ctx.fillStyle = PANEL_BG;
       ctx.fillRect(boardX - 2, boardY - 2, boardW + 4, boardH + 4);
@@ -518,20 +502,15 @@ export function createSnakeMinigame({
         ctx.font = '13px ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Grade completa!', screenW / 2, boardY + boardH / 2 - 22);
+        ctx.fillText('Grade completa!', screenW / 2, boardY + boardH / 2 - 10);
         if (state.phaseId < SNAKE_MAX_PHASE) {
           ctx.fillStyle = MUTED_COLOR;
           ctx.font = '11px ui-monospace, monospace';
-          ctx.fillText('Próxima fase desbloqueada', screenW / 2, boardY + boardH / 2);
+          ctx.fillText('Próxima fase desbloqueada', screenW / 2, boardY + boardH / 2 + 12);
         } else {
           ctx.fillStyle = MUTED_COLOR;
           ctx.font = '11px ui-monospace, monospace';
-          ctx.fillText('Todas as fases concluídas!', screenW / 2, boardY + boardH / 2);
-        }
-        if (lastUnlockedSkins.length) {
-          ctx.fillStyle = '#c8e6c9';
-          ctx.font = '10px ui-monospace, monospace';
-          ctx.fillText(formatSnakeSkinUnlockMessage(lastUnlockedSkins), screenW / 2, boardY + boardH / 2 + 22);
+          ctx.fillText('Todas as fases concluídas!', screenW / 2, boardY + boardH / 2 + 12);
         }
       }
 
