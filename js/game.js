@@ -6,7 +6,7 @@
 import { CONFIG, resolveAsset } from './config.js?v=auth17';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
-import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas23';
+import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas24';
 import { createLocalPlayer } from './canvas/player.js?v=canvas30';
 import { createGameEngine } from './canvas/engine.js?v=canvas41';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake12';
