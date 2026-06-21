@@ -316,6 +316,29 @@ export function createAuthStore({ sessionSecret }) {
     return 0;
   }
 
+  function clearAllSnakeBestScores() {
+    let cleared = 0;
+
+    for (const key of Object.keys(users)) {
+      const user = users[key];
+      if (!user) continue;
+
+      const hadScore =
+        user.snake_best_score != null ||
+        (user.snake_best_scores && typeof user.snake_best_scores === 'object');
+
+      if (!hadScore) continue;
+
+      delete user.snake_best_score;
+      delete user.snake_best_scores;
+      users[key] = user;
+      cleared += 1;
+    }
+
+    persistUsers();
+    return cleared;
+  }
+
   function listUserKeys() {
     return Object.keys(users);
   }
@@ -370,6 +393,7 @@ export function createAuthStore({ sessionSecret }) {
     moderateUser,
     importUsers,
     resetUsers,
+    clearAllSnakeBestScores,
     listUserKeys,
     listAccountMembers,
     saveSnakeBestScore,

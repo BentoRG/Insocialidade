@@ -5,7 +5,26 @@
 import { apiSaveSnakeBestScore, getStoredSession, saveSession } from './api.js';
 import { SNAKE_MAX_PHASE } from './snake-progress.js';
 
-const SNAKE_BEST_KEY = 'insocialidade_snake_best';
+const SNAKE_BEST_KEY = 'insocialidade_snake_best_phases_v2';
+const LEGACY_SNAKE_BEST_KEYS = [
+  'insocialidade_snake_best',
+  'insocialidade_snake_best_phases',
+];
+
+let legacySnakeBestScoresCleared = false;
+
+function discardLegacySnakeBestScores() {
+  if (legacySnakeBestScoresCleared) return;
+  legacySnakeBestScoresCleared = true;
+
+  for (const key of LEGACY_SNAKE_BEST_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignora quota / modo privado
+    }
+  }
+}
 
 function normalizeScore(value) {
   const score = Number(value);
@@ -63,6 +82,7 @@ function readStoredUserScores(raw) {
 }
 
 function getLocalSnakeBestScores(userId) {
+  discardLegacySnakeBestScores();
   if (!userId) return emptySnakeBestScores();
 
   try {
