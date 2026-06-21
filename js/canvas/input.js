@@ -28,6 +28,7 @@ function isTypingTarget(el) {
 export function createInput() {
   const pressed = new Set();
   const pendingDigits = [];
+  let pendingConfirm = false;
 
   function onKeyDown(e) {
     if (isTypingTarget(e.target)) return;
@@ -41,6 +42,10 @@ export function createInput() {
       if (codes.includes(e.code)) {
         pendingDigits.push(Number(digit));
       }
+    }
+
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+      pendingConfirm = true;
     }
   }
 
@@ -77,12 +82,19 @@ export function createInput() {
     clear() {
       pressed.clear();
       pendingDigits.length = 0;
+      pendingConfirm = false;
     },
 
     consumeDigit(digit) {
       const idx = pendingDigits.indexOf(digit);
       if (idx === -1) return false;
       pendingDigits.splice(idx, 1);
+      return true;
+    },
+
+    consumeConfirm() {
+      if (!pendingConfirm) return false;
+      pendingConfirm = false;
       return true;
     },
   };

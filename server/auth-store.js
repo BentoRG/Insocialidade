@@ -137,12 +137,44 @@ export function createAuthStore({ sessionSecret }) {
     user.snake_best_score = Math.max(...Object.values(scores));
   }
 
+  const DEFAULT_SKIN_ID = 'default';
+
+  function normalizeUnlockedSkins(value) {
+    if (!Array.isArray(value) || !value.length) return [DEFAULT_SKIN_ID];
+    const ids = value.map((entry) => String(entry).trim()).filter(Boolean);
+    return ids.includes(DEFAULT_SKIN_ID) ? ids : [DEFAULT_SKIN_ID, ...ids];
+  }
+
+  function normalizeSkinFields(user) {
+    if (!user.registration_color) {
+      user.registration_color = normalizeCharacterColor(user.character_color);
+    }
+    user.unlocked_skins = normalizeUnlockedSkins(user.unlocked_skins);
+    if (!user.unlocked_skins.includes(user.active_skin_id)) {
+      user.active_skin_id = DEFAULT_SKIN_ID;
+    }
+    if (!user.active_skin_id) {
+      user.active_skin_id = DEFAULT_SKIN_ID;
+    }
+  }
+
+  function resolveSkinColor(user, skinId) {
+    if (skinId === DEFAULT_SKIN_ID) {
+      return normalizeCharacterColor(user.registration_color || user.character_color);
+    }
+    return normalizeCharacterColor(user.registration_color || user.character_color);
+  }
+
   function publicProfile(user) {
+    normalizeSkinFields(user);
     const snakeBestScores = normalizeSnakeBestScores(user);
     return {
       id: user.id,
       username: user.username,
       character_color: user.character_color,
+      registration_color: user.registration_color,
+      active_skin_id: user.active_skin_id,
+      unlocked_skins: [...user.unlocked_skins],
       status: user.status,
       snake_best_score: Math.max(...Object.values(snakeBestScores)),
       snake_best_scores: snakeBestScores,
@@ -213,6 +245,9 @@ export function createAuthStore({ sessionSecret }) {
       id: userId,
       username: displayUsername,
       character_color: character,
+      registration_color: character,
+      active_skin_id: DEFAULT_SKIN_ID,
+      unlocked_skins: [DEFAULT_SKIN_ID],
       status: 'pending',
       salt,
       passwordHash: hashPassword(password, salt),
@@ -384,6 +419,35 @@ export function createAuthStore({ sessionSecret }) {
     return { ok: true, snake_best_score: user.snake_best_score, snake_best_scores: scores };
   }
 
+  async function saveCharacterSkin({ token, activeSkinId }) {
+    const userId = verifyToken(token);
+    if (!userId) {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const user = findUserById(userId);
+    if (!user || user.status !== 'active') {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    normalizeSkinFields(user);
+    const skinId = String(activeSkinId || DEFAULT_SKIN_ID);
+    if (!user.unlocked_skins.includes(skinId)) {
+      return { ok: false, error: 'Skin indisponível.', httpStatus: 400 };
+    }
+
+    user.active_skin_id = skinId;
+    user.character_color = resolveSkinColor(user, skinId);
+
+    const key = Object.keys(users).find((k) => users[k].id === userId);
+    if (key) {
+      users[key] = user;
+      await enqueuePersist();
+    }
+
+    return { ok: true, profile: publicProfile(user) };
+  }
+
   return {
     verifyToken,
     register,
@@ -397,6 +461,7 @@ export function createAuthStore({ sessionSecret }) {
     listUserKeys,
     listAccountMembers,
     saveSnakeBestScore,
+    saveCharacterSkin,
     getUsers: () => ({ ...users }),
   };
 }

@@ -7,10 +7,9 @@ import { parseRegions, createRegionLookup } from './regions.js?v=canvas20';
 import { isWithinTileRadius } from '../proximity.js';
 
 const POCO_TILE_GID = 8;
-const ARBUSTO_TILE_GID = 10;
 const OUTLINE_PX = 1;
 
-const OUTLINED_TILE_GIDS = new Set([ARBUSTO_TILE_GID]);
+const OUTLINED_TILE_TIPOS = new Set(['arbusto', 'casa_armario']);
 
 function buildTileMask(image, tileIndex, columns, tileWidth, tileHeight) {
   const canvas = document.createElement('canvas');
@@ -176,15 +175,37 @@ function findCentralWellTile(mapData, collisionData) {
   return best;
 }
 
-function findArbustoTiles(mapData, collisionData) {
+function buildTipoGidMap(mapData) {
+  /** @type {Map<string, number[]>} */
+  const tipoToGids = new Map();
+
+  for (const tileset of mapData.tilesets || []) {
+    const firstgid = tileset.firstgid || 1;
+
+    for (const tile of tileset.tiles || []) {
+      const tipo = tile.properties?.find((prop) => prop.name === 'tipo')?.value;
+      if (!tipo) continue;
+
+      const gid = firstgid + tile.id;
+      const list = tipoToGids.get(tipo) || [];
+      list.push(gid);
+      tipoToGids.set(tipo, list);
+    }
+  }
+
+  return tipoToGids;
+}
+
+function findTilesByGids(mapData, layerData, gids) {
   const mapWidth = mapData.width;
   const mapHeight = mapData.height;
+  const gidSet = new Set(gids);
   const tiles = [];
 
   for (let row = 0; row < mapHeight; row++) {
     for (let col = 0; col < mapWidth; col++) {
       const idx = row * mapWidth + col;
-      if (collisionData[idx] !== ARBUSTO_TILE_GID) continue;
+      if (!gidSet.has(layerData[idx])) continue;
       tiles.push({ col, row });
     }
   }
@@ -192,13 +213,17 @@ function findArbustoTiles(mapData, collisionData) {
   return tiles;
 }
 
-export function isNearArbusto(map, playerX, playerY, radius = 1) {
-  if (!map?.arbustoTiles?.length) return false;
+function findTilesByTipo(mapData, layerData, tipo, tipoGidMap) {
+  return findTilesByGids(mapData, layerData, tipoGidMap.get(tipo) || []);
+}
+
+function isNearTiles(map, tiles, playerX, playerY, radius = 1) {
+  if (!tiles?.length) return false;
 
   const tileWidth = map.tileWidth;
   const tileHeight = map.tileHeight;
 
-  for (const tile of map.arbustoTiles) {
+  for (const tile of tiles) {
     const tileX = tile.col * tileWidth + tileWidth / 2;
     const tileY = tile.row * tileHeight + tileHeight / 2;
     if (
@@ -209,6 +234,15 @@ export function isNearArbusto(map, playerX, playerY, radius = 1) {
   }
 
   return false;
+}
+
+export function isNearTileType(map, tipo, playerX, playerY, radius = 1) {
+  if (!map?.tilesByTipo) return false;
+  return isNearTiles(map, map.tilesByTipo[tipo], playerX, playerY, radius);
+}
+
+export function isNearArbusto(map, playerX, playerY, radius = 1) {
+  return isNearTileType(map, 'arbusto', playerX, playerY, radius);
 }
 
 function getSpawnBesideWell(map, wellTile) {
@@ -307,12 +341,15 @@ export async function loadMap(mapUrl) {
   const mapHeight = mapData.height;
   const firstGid = tilesetDef.firstgid;
   const columns = tilesetDef.columns;
+  const tipoGidMap = buildTipoGidMap(mapData);
   const outlinedTileMasks = new Map();
 
-  for (const gid of OUTLINED_TILE_GIDS) {
-    const tileIndex = gid - firstGid;
-    if (tileIndex < 0) continue;
-    outlinedTileMasks.set(gid, buildTileMask(image, tileIndex, columns, tileWidth, tileHeight));
+  for (const tipo of OUTLINED_TILE_TIPOS) {
+    for (const gid of tipoGidMap.get(tipo) || []) {
+      const tileIndex = gid - firstGid;
+      if (tileIndex < 0) continue;
+      outlinedTileMasks.set(gid, buildTileMask(image, tileIndex, columns, tileWidth, tileHeight));
+    }
   }
 
   const map = {
@@ -388,7 +425,12 @@ export async function loadMap(mapUrl) {
 
   map.id = getMapId(mapFetchUrl);
   map.defaultSpawn = getDefaultSpawn(map, mapData, collisionData);
-  map.arbustoTiles = findArbustoTiles(mapData, collisionData);
+  map.tilesByTipo = {
+    arbusto: findTilesByTipo(mapData, collisionData, 'arbusto', tipoGidMap),
+    casa_armario: findTilesByTipo(mapData, collisionData, 'casa_armario', tipoGidMap),
+  };
+  map.arbustoTiles = map.tilesByTipo.arbusto;
+  map.casaArmarioTiles = map.tilesByTipo.casa_armario;
 
   const regions = parseRegions(mapData);
   const regionLookup = createRegionLookup(regions);

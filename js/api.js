@@ -70,3 +70,7 @@ export async function apiListMembers(token) {
 export async function apiSaveSnakeBestScore(token, phaseId, score) {
   return apiRequest('snake_best', { token, phaseId, score });
 }
+
+export async function apiSaveCharacterSkin(token, activeSkinId) {
+  return apiRequest('skin_update', { token, activeSkinId });
+}

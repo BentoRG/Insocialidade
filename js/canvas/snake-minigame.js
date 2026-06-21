@@ -298,6 +298,10 @@ export function createSnakeMinigame({
   }
 
   return {
+    getKind() {
+      return 'snake';
+    },
+
     getStatus() {
       return state.status;
     },

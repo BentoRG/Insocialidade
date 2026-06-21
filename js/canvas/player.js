@@ -11,12 +11,13 @@ const SPRITE_H_PX = BODY_PX + LEG_H_PX;
 const LEG_OFFSETS = [0, 1];
 const OUTLINE_PX = 1;
 
-export function createLocalPlayer({ x, y, color, username }) {
+export function createLocalPlayer({ x, y, color, username, skinStyle = 'classic' }) {
   return {
     id: 'local',
     x,
     y,
     color,
+    skinStyle,
     username,
     facing: 'down',
     moving: false,
@@ -28,7 +29,7 @@ export function createLocalPlayer({ x, y, color, username }) {
 const TELEPORT_THRESHOLD = 96;
 const REMOTE_LERP_RATE = 36;
 
-export function createRemotePlayer({ id, x, y, color, username, facing }) {
+export function createRemotePlayer({ id, x, y, color, username, facing, skinStyle = 'classic' }) {
   return {
     id,
     x,
@@ -36,6 +37,7 @@ export function createRemotePlayer({ id, x, y, color, username, facing }) {
     targetX: x,
     targetY: y,
     color,
+    skinStyle,
     username,
     facing: facing || 'down',
     targetFacing: facing || 'down',
@@ -202,14 +204,21 @@ export function drawPlayer(
   const px = scale;
 
   const bodyColor = player.color || '#222233';
+  const skinStyle = player.skinStyle || 'classic';
   const bodyW = BODY_PX * px;
   const bodyX = screenX - bodyW / 2;
   const bodyY = screenY - SPRITE_H_PX * px;
 
   const legShift = player.moving ? LEG_OFFSETS[player.animFrame] : 0;
   const mask = buildSpriteMask(legShift);
-  drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
-  drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
+
+  if (skinStyle === 'classic') {
+    drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
+    drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
+  } else {
+    drawSpriteOutline(ctx, bodyX, bodyY, px, mask);
+    drawSpriteFill(ctx, bodyX, bodyY, px, mask, bodyColor);
+  }
 
   if (showLabel && player.username) {
     ctx.font = `${Math.max(8, 6 * px)}px ui-monospace, monospace`;

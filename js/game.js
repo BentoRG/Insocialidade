@@ -3,18 +3,20 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=auth16';
+import { CONFIG, resolveAsset } from './config.js?v=auth17';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
-import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
-import { createLocalPlayer } from './canvas/player.js?v=canvas29';
+import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas23';
+import { createLocalPlayer } from './canvas/player.js?v=canvas30';
 import { createGameEngine } from './canvas/engine.js?v=canvas41';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake11';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake12';
+import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe1';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
 import { loadSnakeBestScores } from './snake-best-score.js';
 import { loadSnakeProgress } from './snake-progress.js';
+import { loadSkinState } from './skin-store.js';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -27,6 +29,8 @@ const gameCanvas = document.getElementById('game-canvas');
 const gameStatus = document.getElementById('game-status');
 const usersList = document.getElementById('users-list');
 const arbustoPromptBtn = document.getElementById('arbusto-prompt-btn');
+const casaArmarioPromptBtn = document.getElementById('casa-armario-prompt-btn');
+const casaArmarioExitBtn = document.getElementById('casa-armario-exit-btn');
 const snakeExitBtn = document.getElementById('snake-exit-btn');
 const snakeGameoverPanel = document.getElementById('snake-gameover-panel');
 const snakeRetryBtn = document.getElementById('snake-retry-btn');
@@ -152,12 +156,20 @@ function setupKeyboardShortcuts(engine) {
 
     if (engine.isMinigameOpen() && e.code === 'Enter') {
       e.preventDefault();
-      retrySnakeMinigame();
+      const minigame = engine.getMinigame();
+      if (minigame?.getKind?.() === 'snake') {
+        retrySnakeMinigame();
+      }
     }
   }
 
   window.addEventListener('keydown', onKeyDown);
   return () => window.removeEventListener('keydown', onKeyDown);
+}
+
+function updateProximityPrompts() {
+  updateArbustoPrompt();
+  updateCasaArmarioPrompt();
 }
 
 function updateArbustoPrompt() {
@@ -169,15 +181,47 @@ function updateArbustoPrompt() {
   arbustoPromptBtn.hidden = !show;
 }
 
+function updateCasaArmarioPrompt() {
+  if (!casaArmarioPromptBtn || !engine || !loadedMap) return;
+
+  const minigame = engine.getMinigame();
+  const wardrobeOpen = engine.isMinigameOpen() && minigame?.getKind?.() === 'wardrobe';
+  const localPlayer = engine.getLocalPlayer();
+  const near = isNearTileType(loadedMap, 'casa_armario', localPlayer.x, localPlayer.y, 1);
+  const showArbusto = arbustoPromptBtn && !arbustoPromptBtn.hidden;
+  const show = near && !engine.isMinigameOpen();
+
+  casaArmarioPromptBtn.hidden = !show;
+  casaArmarioPromptBtn.classList.toggle('is-stacked', show && showArbusto);
+
+  if (casaArmarioExitBtn) {
+    casaArmarioExitBtn.hidden = !wardrobeOpen;
+  }
+}
+
+function updateWardrobeControls() {
+  const minigame = engine?.getMinigame();
+  const open = Boolean(engine?.isMinigameOpen() && minigame?.getKind?.() === 'wardrobe');
+
+  if (casaArmarioExitBtn) casaArmarioExitBtn.hidden = !open;
+  if (open) {
+    if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
+    if (casaArmarioPromptBtn) casaArmarioPromptBtn.hidden = true;
+  }
+
+  updatePauseButton(engine);
+}
+
 function updateSnakeControls() {
   const minigame = engine?.getMinigame();
-  const open = Boolean(engine?.isMinigameOpen() && minigame);
+  const open = Boolean(engine?.isMinigameOpen() && minigame?.getKind?.() === 'snake');
 
   if (!open) {
     if (snakeExitBtn) snakeExitBtn.hidden = true;
     if (snakeGameoverPanel) snakeGameoverPanel.hidden = true;
     if (snakePhaseCompletePanel) snakePhaseCompletePanel.hidden = true;
-    updatePauseButton(engine);
+    updateWardrobeControls();
+    updateProximityPrompts();
     return;
   }
 
@@ -220,11 +264,61 @@ function updateSnakeControls() {
   updatePauseButton(engine);
 }
 
+function applyLocalAppearance({ characterColor, skinStyle, skinId }) {
+  const localPlayer = engine?.getLocalPlayer();
+  if (!localPlayer) return;
+
+  if (characterColor) localPlayer.color = characterColor;
+  if (skinStyle) localPlayer.skinStyle = skinStyle;
+
+  if (playerProfile) {
+    playerProfile.character_color = characterColor || playerProfile.character_color;
+    playerProfile.active_skin_id = skinId || playerProfile.active_skin_id;
+  }
+
+  if (playerAvatar && characterColor) {
+    playerAvatar.style.backgroundColor = characterColor;
+  }
+}
+
+function closeWardrobe() {
+  if (!engine) return;
+  engine.closeMinigame();
+  updateWardrobeControls();
+  updateProximityPrompts();
+}
+
+function openWardrobe() {
+  if (!engine || !snakeUserId || !playerProfile) return;
+
+  const skinState = loadSkinState(snakeUserId, playerProfile);
+  if (casaArmarioPromptBtn) casaArmarioPromptBtn.hidden = true;
+  if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
+
+  engine.openMinigame(
+    createWardrobeMinigame({
+      userId: snakeUserId,
+      token: getToken(),
+      registrationColor: skinState.registrationColor,
+      initialActiveSkinId: skinState.activeSkinId,
+      initialUnlockedSkins: skinState.unlockedSkins,
+      onEquip: ({ skinId, skinStyle, characterColor }) => {
+        applyLocalAppearance({ characterColor, skinStyle, skinId });
+      },
+      onClose: () => {
+        updateWardrobeControls();
+        updateProximityPrompts();
+      },
+    })
+  );
+  updateWardrobeControls();
+}
+
 function closeSnakeMinigame() {
   if (!engine) return;
   engine.closeMinigame();
   updateSnakeControls();
-  updateArbustoPrompt();
+  updateProximityPrompts();
 }
 
 function retrySnakeMinigame() {
@@ -270,7 +364,7 @@ async function openSnakeMinigame() {
       initialUnlockedPhase: unlockedPhase,
       onClose: () => {
         updateSnakeControls();
-        updateArbustoPrompt();
+        updateProximityPrompts();
       },
     })
   );
@@ -403,8 +497,11 @@ async function init() {
   const profile = await requireAuth();
   if (!profile) return;
 
+  const userKey = profile.id || profile.username;
+  const skinState = loadSkinState(userKey, profile);
+
   playerName.textContent = profile.username;
-  playerAvatar.style.backgroundColor = profile.character_color;
+  playerAvatar.style.backgroundColor = skinState.characterColor;
   setStatus('Carregando mapa…');
   paintCanvasMessage('Carregando…');
   await waitForLayout();
@@ -424,15 +521,18 @@ async function init() {
   const map = await loadMap(resolveAsset(CONFIG.MAP_URL, { bust: true }));
   loadedMap = map;
   const mapId = map.id || getCurrentMapId(CONFIG.MAP_URL);
-  const userKey = profile.id || profile.username;
   snakeUserId = userKey;
   playerProfile = profile;
+  playerProfile.registration_color = skinState.registrationColor;
+  playerProfile.active_skin_id = skinState.activeSkinId;
+  playerProfile.unlocked_skins = skinState.unlockedSkins;
   const spawn = resolvePlayerSpawn(map, mapId, profile, userKey);
 
   const localPlayer = createLocalPlayer({
     x: spawn.x,
     y: spawn.y,
-    color: profile.character_color,
+    color: skinState.characterColor,
+    skinStyle: skinState.skinStyle,
     username: profile.username,
   });
   localPlayer.facing = spawn.facing;
@@ -458,6 +558,8 @@ async function init() {
     updatePauseButton(engine);
   });
   arbustoPromptBtn?.addEventListener('click', () => openSnakeMinigame());
+  casaArmarioPromptBtn?.addEventListener('click', () => openWardrobe());
+  casaArmarioExitBtn?.addEventListener('click', () => closeWardrobe());
   snakeExitBtn?.addEventListener('click', () => closeSnakeMinigame());
   snakeRetryBtn?.addEventListener('click', () => retrySnakeMinigame());
   snakeGameoverExitBtn?.addEventListener('click', () => closeSnakeMinigame());
@@ -516,8 +618,9 @@ async function init() {
 
   removeChatTick = engine.addTickListener(() => {
     localChat?.update();
-    updateArbustoPrompt();
     updateSnakeControls();
+    updateWardrobeControls();
+    updateProximityPrompts();
   });
 
   await waitForLayout();

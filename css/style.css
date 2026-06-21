@@ -864,6 +864,33 @@ body {
   pointer-events: auto;
 }
 
+.game-casa-armario-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 92%;
+  max-width: none;
+  text-align: center;
+  white-space: normal;
+  pointer-events: auto;
+}
+
+.game-casa-armario-prompt.is-stacked {
+  bottom: 4.35rem;
+}
+
+.game-casa-armario-exit {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: auto;
+  pointer-events: auto;
+}
+
 .game-snake-exit {
   position: absolute;
   left: 50%;
@@ -962,7 +989,9 @@ body {
 }
 
 #game-root:fullscreen .game-arbusto-prompt,
-#game-root:-webkit-full-screen .game-arbusto-prompt {
+#game-root:-webkit-full-screen .game-arbusto-prompt,
+#game-root:fullscreen .game-casa-armario-prompt,
+#game-root:-webkit-full-screen .game-casa-armario-prompt {
   position: fixed;
   left: 50%;
   bottom: 0.75rem;
@@ -970,6 +999,22 @@ body {
   z-index: 10000;
   width: 92%;
   max-width: 960px;
+  pointer-events: auto;
+}
+
+#game-root:fullscreen .game-casa-armario-prompt.is-stacked,
+#game-root:-webkit-full-screen .game-casa-armario-prompt.is-stacked {
+  bottom: 4.35rem;
+}
+
+#game-root:fullscreen .game-casa-armario-exit,
+#game-root:-webkit-full-screen .game-casa-armario-exit {
+  position: fixed;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 10001;
+  width: auto;
   pointer-events: auto;
 }
 
