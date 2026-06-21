@@ -3,10 +3,13 @@
  */
 
 export const DEFAULT_SKIN_ID = 'default';
+export const REGISTRATION_PLACEHOLDER_COLOR = '#990030';
 const SKIN_SLOT_COUNT = 20;
 
 export const SKIN_CATALOG = [
-  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: true },
+  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: 'full' },
+  { id: 'stick_man', label: 'Stick Man', sheetIndex: 1, tint: 'placeholder' },
+  { id: 'tree_disguise', label: 'Desfarce de Árvore', sheetIndex: 2, tint: 'placeholder' },
 ];
 
 export const WARDROBE_SLOT_COUNT = 8;
@@ -23,12 +26,18 @@ export function isSkinUnlocked(skinId, unlockedSkins) {
 export function resolveSkinAppearance(skinId, registrationColor) {
   const skin = getSkinById(skinId);
   const sheetIndex = Math.max(0, Math.min(SKIN_SLOT_COUNT - 1, skin.sheetIndex ?? 0));
+  const tintMode =
+    skin.tint === 'placeholder'
+      ? 'placeholder'
+      : skin.tint === 'full' || skin.tint === true || skin.id === DEFAULT_SKIN_ID
+        ? 'full'
+        : false;
 
-  if (skin.tint || skin.id === DEFAULT_SKIN_ID) {
+  if (tintMode) {
     return {
       skinId: skin.id,
       sheetIndex,
-      tint: true,
+      tint: tintMode,
       color: registrationColor,
     };
   }
@@ -39,6 +48,11 @@ export function resolveSkinAppearance(skinId, registrationColor) {
     tint: false,
     color: skin.color || registrationColor,
   };
+}
+
+export function listWardrobeSkins(unlockedSkins) {
+  const unlocked = normalizeUnlockedSkins(unlockedSkins);
+  return SKIN_CATALOG.filter((skin) => unlocked.includes(skin.id));
 }
 
 export function normalizeUnlockedSkins(value) {

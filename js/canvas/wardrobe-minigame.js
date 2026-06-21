@@ -6,10 +6,11 @@ import {
   DEFAULT_SKIN_ID,
   WARDROBE_COLUMNS,
   WARDROBE_SLOT_COUNT,
+  listWardrobeSkins,
   resolveSkinAppearance,
 } from '../skins.js';
 import { saveActiveSkin } from '../skin-store.js';
-import { drawSkinFrame, getPlayerSpriteSheet } from './player-sprites.js?v=sprites1';
+import { drawSkinFrame, getPlayerSpriteSheet } from './player-sprites.js?v=sprites2';
 
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
 const PANEL_BG = '#141414';
@@ -20,21 +21,22 @@ const SELECTED_BORDER = '#f8f3e6';
 const EMPTY_SLOT_COLOR = 'rgba(248, 243, 230, 0.18)';
 
 const SLOT_GRID_SIZE = 16;
-const DEFAULT_SLOT_LABEL = 'Skin Padrão';
 const SLOT_GAP_X = 18;
 const SLOT_LABEL_HEIGHT = 16;
 const SLOT_ROW_GAP = 10;
 
-function buildSlots() {
+function buildSlots(unlockedSkins) {
+  const wardrobeSkins = listWardrobeSkins(unlockedSkins);
   const slots = [];
 
   for (let index = 0; index < WARDROBE_SLOT_COUNT; index++) {
-    if (index === 0) {
+    const skin = wardrobeSkins[index];
+    if (skin) {
       slots.push({
         index,
-        kind: 'default',
-        skinId: DEFAULT_SKIN_ID,
-        label: DEFAULT_SLOT_LABEL,
+        kind: 'skin',
+        skinId: skin.id,
+        label: skin.label,
       });
       continue;
     }
@@ -71,7 +73,7 @@ function directionFromInput(input) {
   return dy > 0 ? 'down' : 'up';
 }
 
-function drawDefaultSkinPreview(ctx, x, y, size, appearance, selected) {
+function drawSkinPreview(ctx, x, y, size, appearance, selected) {
   ctx.fillStyle = selected ? '#1f1f1f' : PANEL_BG;
   ctx.fillRect(x, y, size, size);
   ctx.strokeStyle = selected ? SELECTED_BORDER : PANEL_BORDER;
@@ -123,9 +125,9 @@ export function createWardrobeMinigame({
 } = {}) {
   let activeSkinId = initialActiveSkinId;
   let unlockedSkins = [...initialUnlockedSkins];
-  const slots = buildSlots();
+  let slots = buildSlots(unlockedSkins);
   let selectedIndex = 0;
-  let statusMessage = 'Setas para escolher · Enter para equipar a skin padrão';
+  let statusMessage = 'Setas para escolher · Enter para equipar';
   let moveCooldown = 0;
 
   function applyAppearance(skinId) {
@@ -134,7 +136,7 @@ export function createWardrobeMinigame({
 
   async function equipSelectedSlot() {
     const slot = slotAt(slots, selectedIndex);
-    if (slot.kind !== 'default' || !slot.skinId) {
+    if (slot.kind !== 'skin' || !slot.skinId) {
       statusMessage = 'Este slot está vazio.';
       return;
     }
@@ -151,8 +153,11 @@ export function createWardrobeMinigame({
 
     activeSkinId = saved.activeSkinId;
     unlockedSkins = saved.unlockedSkins;
+    slots = buildSlots(unlockedSkins);
     statusMessage =
-      slot.skinId === saved.activeSkinId ? 'Skin Padrão equipada!' : 'Não foi possível equipar.';
+      slot.skinId === saved.activeSkinId
+        ? `${slot.label} equipada!`
+        : 'Não foi possível equipar.';
 
     onEquip?.({
       skinId: saved.activeSkinId,
@@ -205,7 +210,6 @@ export function createWardrobeMinigame({
       const gridH = (rows - 1) * slotRowPitch + slotSize + SLOT_LABEL_HEIGHT;
       const gridX = Math.round((screenW - gridW) / 2);
       const gridY = Math.round((screenH - gridH) / 2);
-      const defaultAppearance = applyAppearance(DEFAULT_SKIN_ID);
 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -227,13 +231,13 @@ export function createWardrobeMinigame({
         ctx.save();
         ctx.translate(x, y);
 
-        if (slot.kind === 'default') {
-          drawDefaultSkinPreview(
+        if (slot.kind === 'skin') {
+          drawSkinPreview(
             ctx,
             0,
             0,
             slotSize,
-            defaultAppearance,
+            applyAppearance(slot.skinId),
             selected
           );
         } else {
@@ -250,7 +254,7 @@ export function createWardrobeMinigame({
           ctx.fillText(slot.label, x + slotSize / 2, y + slotSize + 6);
         }
 
-        if (slot.kind === 'default' && activeSkinId === DEFAULT_SKIN_ID) {
+        if (slot.kind === 'skin' && activeSkinId === slot.skinId) {
           ctx.fillStyle = TEXT_COLOR;
           ctx.font = '9px ui-monospace, monospace';
           ctx.textAlign = 'center';

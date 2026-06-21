@@ -10,7 +10,7 @@ import {
   getPlayerSpriteSheet,
   FRAME_W,
   FRAME_H,
-} from './player-sprites.js?v=sprites1';
+} from './player-sprites.js?v=sprites2';
 
 const BODY_PX = 6;
 const LEG_H_PX = 2;

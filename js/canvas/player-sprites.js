@@ -2,7 +2,8 @@
  * Sprite sheet de skins do jogador — load, frames e desenho com tinte/outline.
  */
 
-import { resolveAsset, CONFIG } from '../config.js';
+import { resolveAsset } from '../config.js';
+import { REGISTRATION_PLACEHOLDER_COLOR } from '../skins.js';
 
 export const FRAME_W = 6;
 export const FRAME_H = 8;
@@ -11,6 +12,31 @@ export const SKIN_SLOT_COUNT = 20;
 
 const OUTLINE_PX = 1;
 const SHEET_URL = 'assets/characters/player-skins.png';
+const PLACEHOLDER_RGB = hexToRgb(REGISTRATION_PLACEHOLDER_COLOR);
+const COLOR_MATCH_TOLERANCE = 8;
+
+function hexToRgb(hex) {
+  const normalized = String(hex || '').replace('#', '');
+  if (normalized.length !== 6) return [0, 0, 0];
+  return [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16),
+  ];
+}
+
+function parseCssColor(hex) {
+  const [r, g, b] = hexToRgb(hex);
+  return { r, g, b };
+}
+
+function matchesPlaceholder(r, g, b) {
+  return (
+    Math.abs(r - PLACEHOLDER_RGB[0]) <= COLOR_MATCH_TOLERANCE &&
+    Math.abs(g - PLACEHOLDER_RGB[1]) <= COLOR_MATCH_TOLERANCE &&
+    Math.abs(b - PLACEHOLDER_RGB[2]) <= COLOR_MATCH_TOLERANCE
+  );
+}
 
 let sheetImage = null;
 let loadPromise = null;
@@ -115,7 +141,7 @@ function drawOutlineFromMask(ctx, originX, originY, px, mask) {
   }
 }
 
-function drawTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color) {
+function drawFullTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color) {
   ensureOffscreen();
   if (!tintCtx || !sheet) return false;
 
@@ -127,6 +153,41 @@ function drawTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color) {
   tintCtx.fillRect(0, 0, FRAME_W, FRAME_H);
   tintCtx.globalCompositeOperation = 'source-over';
 
+  ctx.drawImage(
+    tintCanvas,
+    0,
+    0,
+    FRAME_W,
+    FRAME_H,
+    destX,
+    destY,
+    FRAME_W * scale,
+    FRAME_H * scale
+  );
+  return true;
+}
+
+function drawPlaceholderTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color) {
+  ensureOffscreen();
+  if (!tintCtx || !sheet) return false;
+
+  tintCtx.clearRect(0, 0, FRAME_W, FRAME_H);
+  tintCtx.drawImage(sheet, sx, sy, FRAME_W, FRAME_H, 0, 0, FRAME_W, FRAME_H);
+
+  const imageData = tintCtx.getImageData(0, 0, FRAME_W, FRAME_H);
+  const data = imageData.data;
+  const { r: pr, g: pg, b: pb } = parseCssColor(color);
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    if (matchesPlaceholder(data[i], data[i + 1], data[i + 2])) {
+      data[i] = pr;
+      data[i + 1] = pg;
+      data[i + 2] = pb;
+    }
+  }
+
+  tintCtx.putImageData(imageData, 0, 0);
   ctx.drawImage(
     tintCanvas,
     0,
@@ -180,7 +241,7 @@ export function drawSkinFrame(
     feetY,
     scale = 1,
     color = '#4a4a4a',
-    tint = true,
+    tint = 'full',
     showOutline = true,
   } = {}
 ) {
@@ -192,13 +253,16 @@ export function drawSkinFrame(
   const destX = feetX - (FRAME_W * scale) / 2;
   const destY = feetY - FRAME_H * scale;
   const mask = showOutline ? alphaMaskFromFrame(sheet, sx, sy) : null;
+  const tintMode = tint === true ? 'full' : tint;
 
   if (showOutline && mask) {
     drawOutlineFromMask(ctx, destX, destY, scale, mask);
   }
 
-  if (tint) {
-    drawTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color);
+  if (tintMode === 'full') {
+    drawFullTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color);
+  } else if (tintMode === 'placeholder') {
+    drawPlaceholderTintedFrame(ctx, sheet, sx, sy, destX, destY, scale, color);
   } else {
     drawRawFrame(ctx, sheet, sx, sy, destX, destY, scale);
   }
