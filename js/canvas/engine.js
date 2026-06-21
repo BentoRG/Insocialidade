@@ -2,7 +2,7 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas21';
+import { createInput } from './input.js?v=canvas22';
 import { createMinimap } from './minimap.js?v=canvas33';
 import {
   createRemotePlayer,

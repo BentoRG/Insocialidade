@@ -45,7 +45,41 @@ function cloneSnake(snake) {
   return snake.map((segment) => ({ x: segment.x, y: segment.y }));
 }
 
-function directionFromInput(input) {
+const TURN_COMMIT_RATIO = 0.45;
+
+function applyQueuedDirection(state, nextDir) {
+  if (!nextDir || isOpposite(nextDir, state.direction)) return false;
+  if (nextDir === state.queuedDirection) return false;
+
+  const previousQueued = state.queuedDirection;
+  state.queuedDirection = nextDir;
+
+  if (
+    state.status === 'playing' &&
+    nextDir !== state.direction &&
+    previousQueued === state.direction &&
+    state.moveTimer >= MOVE_INTERVAL_MS * TURN_COMMIT_RATIO
+  ) {
+    state.moveTimer = MOVE_INTERVAL_MS;
+  }
+
+  return true;
+}
+
+function consumeDirections(input, state) {
+  if (!input.consumeDirection) return null;
+
+  let latest = null;
+  let direction;
+  while ((direction = input.consumeDirection())) {
+    if (applyQueuedDirection(state, direction)) {
+      latest = direction;
+    }
+  }
+  return latest;
+}
+
+function directionFromHeldInput(input) {
   const { dx, dy } = input.getDirection();
   if (dx === 0 && dy === 0) return null;
   if (Math.abs(dx) >= Math.abs(dy)) {
@@ -294,7 +328,7 @@ export function createSnakeMinigame({
     state.queuedDirection = nextDir;
     state.direction = nextDir;
     state.fromSnake = cloneSnake(state.snake);
-    state.moveTimer = 0;
+    state.moveTimer = MOVE_INTERVAL_MS;
   }
 
   function selectPhase(phaseId) {
@@ -370,7 +404,9 @@ export function createSnakeMinigame({
         selectPhase(requestedPhase);
       }
 
-      const nextDir = directionFromInput(input);
+      const consumedDir = consumeDirections(input, state);
+      const heldDir = directionFromHeldInput(input);
+      const nextDir = consumedDir || heldDir;
 
       if (state.status === 'waiting') {
         if (nextDir) {
@@ -383,8 +419,8 @@ export function createSnakeMinigame({
         return;
       }
 
-      if (nextDir && !isOpposite(nextDir, state.direction)) {
-        state.queuedDirection = nextDir;
+      if (!consumedDir && heldDir) {
+        applyQueuedDirection(state, heldDir);
       }
 
       state.moveTimer += dt * 1000;

@@ -25,9 +25,19 @@ function isTypingTarget(el) {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
 }
 
+function directionFromCode(code) {
+  const [dx, dy] = KEY_MAP[code] || [0, 0];
+  if (dx === 0 && dy === 0) return null;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx > 0 ? 'right' : 'left';
+  }
+  return dy > 0 ? 'down' : 'up';
+}
+
 export function createInput() {
   const pressed = new Set();
   const pendingDigits = [];
+  const pendingDirections = [];
   let pendingConfirm = false;
 
   function onKeyDown(e) {
@@ -35,6 +45,10 @@ export function createInput() {
 
     if (KEY_MAP[e.code]) {
       e.preventDefault();
+      if (!pressed.has(e.code)) {
+        const direction = directionFromCode(e.code);
+        if (direction) pendingDirections.push(direction);
+      }
       pressed.add(e.code);
     }
 
@@ -82,7 +96,12 @@ export function createInput() {
     clear() {
       pressed.clear();
       pendingDigits.length = 0;
+      pendingDirections.length = 0;
       pendingConfirm = false;
+    },
+
+    consumeDirection() {
+      return pendingDirections.shift() ?? null;
     },
 
     consumeDigit(digit) {
