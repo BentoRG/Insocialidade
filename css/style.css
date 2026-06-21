@@ -925,7 +925,8 @@ body {
   text-align: center;
 }
 
-.game-snake-gameover[hidden] {
+.game-snake-gameover[hidden],
+#snake-phase-complete-panel[hidden] {
   display: none !important;
 }
 
@@ -984,7 +985,9 @@ body {
 }
 
 #game-root:fullscreen .game-snake-gameover,
-#game-root:-webkit-full-screen .game-snake-gameover {
+#game-root:-webkit-full-screen .game-snake-gameover,
+#game-root:fullscreen #snake-phase-complete-panel,
+#game-root:-webkit-full-screen #snake-phase-complete-panel {
   position: fixed;
   left: 50%;
   top: 50%;

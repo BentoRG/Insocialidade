@@ -9,11 +9,12 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto } from './canvas/map.js?v=canvas22';
 import { createLocalPlayer } from './canvas/player.js?v=canvas29';
 import { createGameEngine } from './canvas/engine.js?v=canvas40';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake6';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake7';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt8';
 import { loadSnakeBestScore } from './snake-best-score.js';
+import { loadSnakeProgress } from './snake-progress.js';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -32,6 +33,13 @@ const snakeRetryBtn = document.getElementById('snake-retry-btn');
 const snakeGameoverScore = document.getElementById('snake-gameover-score');
 const snakeGameoverBest = document.getElementById('snake-gameover-best');
 const snakeGameoverExitBtn = document.getElementById('snake-gameover-exit-btn');
+const snakePhaseCompletePanel = document.getElementById('snake-phase-complete-panel');
+const snakePhaseCompleteTitle = document.getElementById('snake-phase-complete-title');
+const snakePhaseCompleteScore = document.getElementById('snake-phase-complete-score');
+const snakePhaseCompleteDetail = document.getElementById('snake-phase-complete-detail');
+const snakeNextPhaseBtn = document.getElementById('snake-next-phase-btn');
+const snakePhaseRetryBtn = document.getElementById('snake-phase-retry-btn');
+const snakePhaseExitBtn = document.getElementById('snake-phase-exit-btn');
 
 let engine = null;
 let loadedMap = null;
@@ -162,17 +170,44 @@ function updateSnakeControls() {
   if (!open) {
     if (snakeExitBtn) snakeExitBtn.hidden = true;
     if (snakeGameoverPanel) snakeGameoverPanel.hidden = true;
+    if (snakePhaseCompletePanel) snakePhaseCompletePanel.hidden = true;
     return;
   }
 
-  const gameOver = minigame.getStatus?.() === 'gameover';
+  const status = minigame.getStatus?.();
+  const gameOver = status === 'gameover';
+  const phaseComplete = status === 'phase_complete';
+  const showOverlay = gameOver || phaseComplete;
+
   if (snakeGameoverPanel) snakeGameoverPanel.hidden = !gameOver;
-  if (snakeExitBtn) snakeExitBtn.hidden = gameOver;
+  if (snakePhaseCompletePanel) snakePhaseCompletePanel.hidden = !phaseComplete;
+  if (snakeExitBtn) snakeExitBtn.hidden = showOverlay;
+
   if (gameOver && snakeGameoverScore) {
     snakeGameoverScore.textContent = String(minigame.getScore?.() ?? 0);
   }
   if (gameOver && snakeGameoverBest) {
     snakeGameoverBest.textContent = `Seu recorde: ${minigame.getBestScore?.() ?? 0}`;
+  }
+
+  if (phaseComplete) {
+    const phaseId = minigame.getPhaseId?.() ?? 1;
+    const gridSize = minigame.getGridSize?.() ?? 0;
+    if (snakePhaseCompleteTitle) {
+      snakePhaseCompleteTitle.textContent = `Fase ${phaseId} concluída!`;
+    }
+    if (snakePhaseCompleteScore) {
+      snakePhaseCompleteScore.textContent = String(minigame.getScore?.() ?? 0);
+    }
+    if (snakePhaseCompleteDetail) {
+      snakePhaseCompleteDetail.textContent =
+        phaseId >= 3
+          ? `Grade ${gridSize}×${gridSize} completa — todas as fases concluídas!`
+          : `Grade ${gridSize}×${gridSize} completa — próxima fase desbloqueada`;
+    }
+    if (snakeNextPhaseBtn) {
+      snakeNextPhaseBtn.hidden = !minigame.hasNextPhase?.();
+    }
   }
 }
 
@@ -190,15 +225,28 @@ function retrySnakeMinigame() {
   updateSnakeControls();
 }
 
+function retrySnakePhase() {
+  const minigame = engine?.getMinigame();
+  if (!minigame || minigame.getStatus?.() !== 'phase_complete') return;
+  minigame.restart?.();
+  updateSnakeControls();
+}
+
+function startNextSnakePhase() {
+  const minigame = engine?.getMinigame();
+  if (!minigame || minigame.getStatus?.() !== 'phase_complete') return;
+  if (!minigame.startNextPhase?.()) return;
+  updateSnakeControls();
+}
+
 async function openSnakeMinigame() {
   if (!engine || !snakeUserId) return;
 
   const token = getToken();
-  const bestScore = await loadSnakeBestScore(
-    snakeUserId,
-    token,
-    playerProfile?.snake_best_score ?? 0
-  );
+  const [bestScore, unlockedPhase] = await Promise.all([
+    loadSnakeBestScore(snakeUserId, token, playerProfile?.snake_best_score ?? 0),
+    Promise.resolve(loadSnakeProgress(snakeUserId)),
+  ]);
 
   arbustoPromptBtn.hidden = true;
   engine.openMinigame(
@@ -206,6 +254,7 @@ async function openSnakeMinigame() {
       userId: snakeUserId,
       token,
       initialBestScore: bestScore,
+      initialUnlockedPhase: unlockedPhase,
       onClose: () => {
         updateSnakeControls();
         updateArbustoPrompt();
@@ -398,6 +447,9 @@ async function init() {
   snakeExitBtn?.addEventListener('click', () => closeSnakeMinigame());
   snakeRetryBtn?.addEventListener('click', () => retrySnakeMinigame());
   snakeGameoverExitBtn?.addEventListener('click', () => closeSnakeMinigame());
+  snakeNextPhaseBtn?.addEventListener('click', () => startNextSnakePhase());
+  snakePhaseRetryBtn?.addEventListener('click', () => retrySnakePhase());
+  snakePhaseExitBtn?.addEventListener('click', () => closeSnakeMinigame());
   updatePauseButton(engine);
   removeKeyboardShortcuts = setupKeyboardShortcuts(engine);
 

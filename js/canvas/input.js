@@ -13,6 +13,12 @@ const KEY_MAP = {
   KeyD: [1, 0],
 };
 
+const DIGIT_CODES = {
+  1: ['Digit1', 'Numpad1'],
+  2: ['Digit2', 'Numpad2'],
+  3: ['Digit3', 'Numpad3'],
+};
+
 function isTypingTarget(el) {
   if (!el) return false;
   const tag = el.tagName;
@@ -21,6 +27,7 @@ function isTypingTarget(el) {
 
 export function createInput() {
   const pressed = new Set();
+  const pendingDigits = [];
 
   function onKeyDown(e) {
     if (isTypingTarget(e.target)) return;
@@ -28,6 +35,12 @@ export function createInput() {
     if (KEY_MAP[e.code]) {
       e.preventDefault();
       pressed.add(e.code);
+    }
+
+    for (const [digit, codes] of Object.entries(DIGIT_CODES)) {
+      if (codes.includes(e.code)) {
+        pendingDigits.push(Number(digit));
+      }
     }
   }
 
@@ -63,6 +76,14 @@ export function createInput() {
 
     clear() {
       pressed.clear();
+      pendingDigits.length = 0;
+    },
+
+    consumeDigit(digit) {
+      const idx = pendingDigits.indexOf(digit);
+      if (idx === -1) return false;
+      pendingDigits.splice(idx, 1);
+      return true;
     },
   };
 }

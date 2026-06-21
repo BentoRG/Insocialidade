@@ -85,6 +85,27 @@
                 Sair
               </button>
             </div>
+            <div id="snake-phase-complete-panel" class="game-snake-gameover" hidden>
+              <p id="snake-phase-complete-title" class="game-snake-gameover__label">
+                Fase concluída!
+              </p>
+              <div class="game-snake-gameover__score" aria-live="polite">
+                <span class="game-snake-gameover__label">Pontos</span>
+                <span id="snake-phase-complete-score" class="game-snake-gameover__value">0</span>
+                <span id="snake-phase-complete-detail" class="game-snake-gameover__best">
+                  Próxima fase desbloqueada
+                </span>
+              </div>
+              <button type="button" id="snake-next-phase-btn" class="btn btn--sm">
+                Próxima fase
+              </button>
+              <button type="button" id="snake-phase-retry-btn" class="btn btn--sm">
+                Jogar novamente
+              </button>
+              <button type="button" id="snake-phase-exit-btn" class="btn btn--sm">
+                Sair
+              </button>
+            </div>
           </div>
           <p id="game-status" class="game-status" aria-live="polite"></p>
         </main>
