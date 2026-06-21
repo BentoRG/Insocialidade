@@ -56,6 +56,39 @@ export function loadSkinState(userId, profile = {}) {
   return normalizeSkinState(mergedProfile);
 }
 
+export function applyUnlockedSkins(userId, unlockedSkins, profile = {}) {
+  const current = loadSkinState(userId, profile);
+  const merged = normalizeUnlockedSkins(unlockedSkins);
+  const newlyUnlockedSkins = merged.filter((skinId) => !current.unlockedSkins.includes(skinId));
+
+  if (!newlyUnlockedSkins.length && merged.length === current.unlockedSkins.length) {
+    return {
+      unlockedSkins: current.unlockedSkins,
+      newlyUnlockedSkins: [],
+    };
+  }
+
+  const nextState = normalizeSkinState({
+    registration_color: current.registrationColor,
+    active_skin_id: current.activeSkinId,
+    unlocked_skins: merged,
+    character_color: current.characterColor,
+  });
+
+  writeStoredSkinState(userId, {
+    registration_color: nextState.registrationColor,
+    active_skin_id: nextState.activeSkinId,
+    unlocked_skins: nextState.unlockedSkins,
+    character_color: nextState.characterColor,
+  });
+  updateStoredProfileSkin({ unlocked_skins: nextState.unlockedSkins });
+
+  return {
+    unlockedSkins: nextState.unlockedSkins,
+    newlyUnlockedSkins,
+  };
+}
+
 export async function saveActiveSkin(userId, token, activeSkinId, profile = {}) {
   const current = loadSkinState(userId, profile);
   const nextSkinId = String(activeSkinId || DEFAULT_SKIN_ID);

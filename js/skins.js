@@ -12,11 +12,25 @@ export const SKIN_CATALOG = [
   { id: 'tree_disguise', label: 'Desfarce de Árvore', sheetIndex: 2, tint: 'placeholder' },
 ];
 
+export const SNAKE_SKIN_UNLOCK_BY_PHASE = {
+  2: 'stick_man',
+  3: 'tree_disguise',
+};
+
 export const WARDROBE_SLOT_COUNT = 8;
 export const WARDROBE_COLUMNS = 4;
 
 export function getSkinById(skinId) {
   return SKIN_CATALOG.find((skin) => skin.id === skinId) || SKIN_CATALOG[0];
+}
+
+export function getSnakeSkinUnlockId(phaseId) {
+  const phase = Math.max(1, Math.min(3, Math.floor(Number(phaseId) || 1)));
+  return SNAKE_SKIN_UNLOCK_BY_PHASE[phase] || null;
+}
+
+export function getSkinLabel(skinId) {
+  return getSkinById(skinId).label;
 }
 
 export function isSkinUnlocked(skinId, unlockedSkins) {

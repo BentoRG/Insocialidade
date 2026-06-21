@@ -138,6 +138,30 @@ export function createAuthStore({ sessionSecret }) {
   }
 
   const DEFAULT_SKIN_ID = 'default';
+  const SNAKE_PHASE_GRID_SIZES = { 1: 6, 2: 12, 3: 18 };
+  const SNAKE_SKIN_UNLOCK_BY_PHASE = { 2: 'stick_man', 3: 'tree_disguise' };
+
+  function getSnakePhaseMaxScore(phaseId) {
+    const phase = normalizeSnakePhaseId(phaseId);
+    const gridSize = SNAKE_PHASE_GRID_SIZES[phase] || 6;
+    return gridSize * gridSize - 3;
+  }
+
+  function unlockSnakePhaseSkins(user) {
+    normalizeSkinFields(user);
+    const scores = normalizeSnakeBestScores(user);
+    const newlyUnlockedSkins = [];
+
+    for (const [phase, skinId] of Object.entries(SNAKE_SKIN_UNLOCK_BY_PHASE)) {
+      const phaseNum = Number(phase);
+      if (scores[phaseNum] >= getSnakePhaseMaxScore(phaseNum) && !user.unlocked_skins.includes(skinId)) {
+        user.unlocked_skins.push(skinId);
+        newlyUnlockedSkins.push(skinId);
+      }
+    }
+
+    return newlyUnlockedSkins;
+  }
 
   function normalizeUnlockedSkins(value) {
     if (!Array.isArray(value) || !value.length) return [DEFAULT_SKIN_ID];
@@ -405,10 +429,20 @@ export function createAuthStore({ sessionSecret }) {
     const scores = normalizeSnakeBestScores(user);
     const current = scores[phase];
     const best = Math.max(current, next);
+    let shouldPersist = false;
 
     if (best > current) {
       scores[phase] = best;
       syncSnakeBestScore(user, scores);
+      shouldPersist = true;
+    }
+
+    const newlyUnlockedSkins = unlockSnakePhaseSkins(user);
+    if (newlyUnlockedSkins.length) {
+      shouldPersist = true;
+    }
+
+    if (shouldPersist) {
       const key = Object.keys(users).find((k) => users[k].id === userId);
       if (key) {
         users[key] = user;
@@ -416,7 +450,13 @@ export function createAuthStore({ sessionSecret }) {
       }
     }
 
-    return { ok: true, snake_best_score: user.snake_best_score, snake_best_scores: scores };
+    return {
+      ok: true,
+      snake_best_score: user.snake_best_score,
+      snake_best_scores: scores,
+      unlocked_skins: [...user.unlocked_skins],
+      newly_unlocked_skins: newlyUnlockedSkins,
+    };
   }
 
   async function saveCharacterSkin({ token, activeSkinId }) {

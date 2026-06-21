@@ -3,7 +3,7 @@
  */
 
 import { saveSnakeBestScore, emptySnakeBestScores } from '../snake-best-score.js';
-import { saveSnakeUnlockedPhase, SNAKE_MAX_PHASE } from '../snake-progress.js';
+import { saveSnakeUnlockedPhase, SNAKE_MAX_PHASE, getSnakePhaseMaxScore } from '../snake-progress.js';
 
 const PHASES = [
   { id: 1, gridSize: 6 },
@@ -186,10 +186,12 @@ export function createSnakeMinigame({
   initialUnlockedPhase = 1,
   onClose,
   onProgressChange,
+  onSkinUnlock,
 } = {}) {
   let unlockedPhase = Math.max(1, Math.min(SNAKE_MAX_PHASE, initialUnlockedPhase));
   let state = createInitialState(1);
   let bestScoresByPhase = { ...emptySnakeBestScores(), ...initialBestScores };
+  let lastUnlockedSkins = [];
 
   function getPhaseBestScore(phaseId = state.phaseId) {
     return bestScoresByPhase[phaseId] ?? 0;
@@ -212,13 +214,28 @@ export function createSnakeMinigame({
     return unlockedPhase;
   }
 
+  function handleScoreSaved(result) {
+    const phaseScore =
+      typeof result === 'number' ? result : Number(result?.score ?? getPhaseBestScore(state.phaseId));
+    bestScoresByPhase = { ...bestScoresByPhase, [state.phaseId]: phaseScore };
+
+    const newlyUnlockedSkins = Array.isArray(result?.newlyUnlockedSkins)
+      ? result.newlyUnlockedSkins
+      : [];
+    if (newlyUnlockedSkins.length) {
+      lastUnlockedSkins = newlyUnlockedSkins;
+      onSkinUnlock?.({
+        newlyUnlockedSkins,
+        unlockedSkins: result.unlockedSkins,
+      });
+    }
+  }
+
   function handleGameOver() {
     if (state.status === 'gameover') return;
     state.status = 'gameover';
     updatePhaseBestScore(state.phaseId, state.score);
-    void saveSnakeBestScore(userId, token, state.phaseId, state.score).then((next) => {
-      bestScoresByPhase = { ...bestScoresByPhase, [state.phaseId]: next };
-    });
+    void saveSnakeBestScore(userId, token, state.phaseId, state.score).then(handleScoreSaved);
   }
 
   function handlePhaseComplete() {
@@ -226,9 +243,7 @@ export function createSnakeMinigame({
     state.status = 'phase_complete';
     state.food = null;
     updatePhaseBestScore(state.phaseId, state.score);
-    void saveSnakeBestScore(userId, token, state.phaseId, state.score).then((next) => {
-      bestScoresByPhase = { ...bestScoresByPhase, [state.phaseId]: next };
-    });
+    void saveSnakeBestScore(userId, token, state.phaseId, state.score).then(handleScoreSaved);
     if (state.phaseId < SNAKE_MAX_PHASE) {
       unlockPhase(state.phaseId + 1);
     }
@@ -328,6 +343,14 @@ export function createSnakeMinigame({
 
     hasNextPhase() {
       return state.phaseId < SNAKE_MAX_PHASE && state.phaseId < unlockedPhase;
+    },
+
+    getLastUnlockedSkins() {
+      return [...lastUnlockedSkins];
+    },
+
+    getPhaseMaxScore(phaseId = state.phaseId) {
+      return getSnakePhaseMaxScore(phaseId);
     },
 
     restart() {

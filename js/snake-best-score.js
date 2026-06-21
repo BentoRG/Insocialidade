@@ -3,7 +3,9 @@
  */
 
 import { apiSaveSnakeBestScore, getStoredSession, saveSession } from './api.js';
-import { SNAKE_MAX_PHASE } from './snake-progress.js';
+import { SNAKE_MAX_PHASE, getSnakePhaseMaxScore } from './snake-progress.js';
+import { getSnakeSkinUnlockId } from './skins.js';
+import { applyUnlockedSkins, loadSkinState } from './skin-store.js';
 
 const SNAKE_BEST_KEY = 'insocialidade_snake_best_phases_v2';
 const LEGACY_SNAKE_BEST_KEYS = [
@@ -121,6 +123,33 @@ function updateStoredProfileScores(scores) {
   });
 }
 
+function unlockSkinsFromSnakeScores(userId, scores, profile = {}) {
+  const current = loadSkinState(userId, profile);
+  const extra = [];
+
+  for (let phase = 1; phase <= SNAKE_MAX_PHASE; phase++) {
+    const skinId = getSnakeSkinUnlockId(phase);
+    if (!skinId) continue;
+    if ((scores[phase] ?? 0) >= getSnakePhaseMaxScore(phase) && !current.unlockedSkins.includes(skinId)) {
+      extra.push(skinId);
+    }
+  }
+
+  if (!extra.length) {
+    return { unlockedSkins: current.unlockedSkins, newlyUnlockedSkins: [] };
+  }
+
+  return applyUnlockedSkins(userId, [...current.unlockedSkins, ...extra], profile);
+}
+
+function buildSaveResult(userId, phase, score, unlockResult) {
+  return {
+    score,
+    unlockedSkins: unlockResult.unlockedSkins,
+    newlyUnlockedSkins: unlockResult.newlyUnlockedSkins,
+  };
+}
+
 export function getSnakeBestScoreForPhase(userId, phaseId) {
   return getLocalSnakeBestScores(userId)[normalizePhaseId(phaseId)] ?? 0;
 }
@@ -149,13 +178,35 @@ export async function loadSnakeBestScores(userId, token, profileScores = null) {
 
   setLocalSnakeBestScores(userId, best);
   updateStoredProfileScores(best);
-  return best;
+
+  let unlockResult = unlockSkinsFromSnakeScores(userId, best);
+  if (token) {
+    try {
+      const data = await apiSaveSnakeBestScore(token, 1, best[1]);
+      best = mergePhaseScores(best, data.snake_best_scores);
+      setLocalSnakeBestScores(userId, best);
+      updateStoredProfileScores(best);
+      if (Array.isArray(data.unlocked_skins)) {
+        unlockResult = applyUnlockedSkins(userId, data.unlocked_skins);
+      } else {
+        unlockResult = unlockSkinsFromSnakeScores(userId, best);
+      }
+    } catch {
+      // fallback para cache local
+    }
+  }
+
+  return { scores: best, ...unlockResult };
 }
 
 export async function saveSnakeBestScore(userId, token, phaseId, score) {
   const phase = normalizePhaseId(phaseId);
   if (!userId || !Number.isFinite(score) || score < 0) {
-    return getLocalSnakeBestScores(userId)[phase];
+    const current = getLocalSnakeBestScores(userId);
+    return buildSaveResult(userId, phase, current[phase], {
+      unlockedSkins: loadSkinState(userId).unlockedSkins,
+      newlyUnlockedSkins: [],
+    });
   }
 
   const current = getLocalSnakeBestScores(userId);
@@ -171,11 +222,15 @@ export async function saveSnakeBestScore(userId, token, phaseId, score) {
       const best = mergePhaseScores(next, data.snake_best_scores);
       setLocalSnakeBestScores(userId, best);
       updateStoredProfileScores(best);
-      return best[phase];
+      const unlockResult = Array.isArray(data.unlocked_skins)
+        ? applyUnlockedSkins(userId, data.unlocked_skins)
+        : unlockSkinsFromSnakeScores(userId, best);
+      return buildSaveResult(userId, phase, best[phase], unlockResult);
     } catch {
       // fallback para cache local
     }
   }
 
-  return next[phase];
+  const unlockResult = unlockSkinsFromSnakeScores(userId, next);
+  return buildSaveResult(userId, phase, next[phase], unlockResult);
 }

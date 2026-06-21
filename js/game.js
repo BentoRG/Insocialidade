@@ -10,14 +10,15 @@ import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas
 import { createLocalPlayer } from './canvas/player.js?v=canvas32';
 import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites2';
 import { createGameEngine } from './canvas/engine.js?v=canvas42';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake12';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake13';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe9';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt9';
-import { loadSnakeBestScores } from './snake-best-score.js';
-import { loadSnakeProgress } from './snake-progress.js';
-import { loadSkinState } from './skin-store.js';
+import { loadSnakeBestScores } from './snake-best-score.js?v=snakebest3';
+import { loadSnakeProgress } from './snake-progress.js?v=snakeprog2';
+import { loadSkinState } from './skin-store.js?v=skinstore2';
+import { getSkinLabel } from './skins.js';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -252,10 +253,14 @@ function updateSnakeControls() {
       snakePhaseCompleteScore.textContent = String(minigame.getScore?.() ?? 0);
     }
     if (snakePhaseCompleteDetail) {
+      const unlocked = minigame.getLastUnlockedSkins?.() ?? [];
+      const unlockText = unlocked.length
+        ? ` · ${unlocked.map(getSkinLabel).join(' · ')} desbloqueado${unlocked.length > 1 ? 's' : ''}!`
+        : '';
       snakePhaseCompleteDetail.textContent =
         phaseId >= 3
-          ? `Grade ${gridSize}×${gridSize} completa — todas as fases concluídas!`
-          : `Grade ${gridSize}×${gridSize} completa — próxima fase desbloqueada`;
+          ? `Grade ${gridSize}×${gridSize} completa — todas as fases concluídas!${unlockText}`
+          : `Grade ${gridSize}×${gridSize} completa — próxima fase desbloqueada${unlockText}`;
     }
     if (snakeNextPhaseBtn) {
       snakeNextPhaseBtn.hidden = !minigame.hasNextPhase?.();
@@ -354,7 +359,7 @@ async function openSnakeMinigame() {
   if (!engine || !snakeUserId) return;
 
   const token = getToken();
-  const [bestScores, unlockedPhase] = await Promise.all([
+  const [bestLoad, unlockedPhase] = await Promise.all([
     loadSnakeBestScores(
       snakeUserId,
       token,
@@ -362,6 +367,10 @@ async function openSnakeMinigame() {
     ),
     Promise.resolve(loadSnakeProgress(snakeUserId)),
   ]);
+  const bestScores = bestLoad.scores ?? bestLoad;
+  if (bestLoad.unlockedSkins && playerProfile) {
+    playerProfile.unlocked_skins = bestLoad.unlockedSkins;
+  }
 
   arbustoPromptBtn.hidden = true;
   engine.openMinigame(
@@ -370,6 +379,12 @@ async function openSnakeMinigame() {
       token,
       initialBestScores: bestScores,
       initialUnlockedPhase: unlockedPhase,
+      onSkinUnlock: ({ unlockedSkins }) => {
+        if (playerProfile && unlockedSkins) {
+          playerProfile.unlocked_skins = unlockedSkins;
+        }
+        updateSnakeControls();
+      },
       onClose: () => {
         updateSnakeControls();
         updateProximityPrompts();
