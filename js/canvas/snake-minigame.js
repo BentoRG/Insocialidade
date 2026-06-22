@@ -124,6 +124,43 @@ function createInitialState(phaseId) {
   };
 }
 
+const PHASE_BUTTON_W = 52;
+const PHASE_BUTTON_H = 28;
+const PHASE_BUTTON_GAP = 10;
+
+function pointInRect(x, y, rect) {
+  return x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
+}
+
+function getBoardLayout(screenW, screenH, gridSize) {
+  const margin = 16;
+  const headerH = 96;
+  const footerH = 28;
+  const maxBoardW = screenW - margin * 2;
+  const maxBoardH = screenH - margin * 2 - headerH - footerH;
+  const cellSize = Math.max(
+    8,
+    Math.floor(Math.min(maxBoardW / gridSize, maxBoardH / gridSize))
+  );
+  const boardW = cellSize * gridSize;
+  const boardH = cellSize * gridSize;
+  const boardX = Math.round((screenW - boardW) / 2);
+  const boardY = Math.round(margin + headerH);
+
+  return { boardX, boardY, boardW, boardH, cellSize };
+}
+
+function getPhaseButtonRects(screenW, y) {
+  const totalW = PHASES.length * PHASE_BUTTON_W + (PHASES.length - 1) * PHASE_BUTTON_GAP;
+  let x = Math.round((screenW - totalW) / 2);
+
+  return PHASES.map((phase) => {
+    const rect = { phaseId: phase.id, x, y, w: PHASE_BUTTON_W, h: PHASE_BUTTON_H };
+    x += PHASE_BUTTON_W + PHASE_BUTTON_GAP;
+    return rect;
+  });
+}
+
 function drawGrid(ctx, boardX, boardY, cellSize, gridSize) {
   ctx.strokeStyle = GRID_LINE;
   ctx.lineWidth = 1;
@@ -162,37 +199,29 @@ function drawGameOverScreen(ctx, boardX, boardY, boardW, boardH) {
 }
 
 function drawPhaseSelector(ctx, screenW, y, currentPhaseId, unlockedPhase) {
-  const buttonW = 52;
-  const buttonH = 28;
-  const gap = 10;
-  const totalW = PHASES.length * buttonW + (PHASES.length - 1) * gap;
-  let x = Math.round((screenW - totalW) / 2);
-
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '11px ui-monospace, monospace';
 
-  for (const phase of PHASES) {
-    const locked = phase.id > unlockedPhase;
-    const selected = phase.id === currentPhaseId;
+  for (const rect of getPhaseButtonRects(screenW, y)) {
+    const locked = rect.phaseId > unlockedPhase;
+    const selected = rect.phaseId === currentPhaseId;
 
     ctx.fillStyle = locked ? 'rgba(20, 20, 20, 0.9)' : selected ? TEXT_COLOR : PANEL_BG;
-    ctx.fillRect(x, y, buttonW, buttonH);
+    ctx.fillRect(rect.x, y, rect.w, rect.h);
     ctx.strokeStyle = locked ? LOCKED_COLOR : selected ? TEXT_COLOR : PANEL_BORDER;
     ctx.lineWidth = 1;
-    ctx.strokeRect(x + 0.5, y + 0.5, buttonW - 1, buttonH - 1);
+    ctx.strokeRect(rect.x + 0.5, y + 0.5, rect.w - 1, rect.h - 1);
 
     ctx.fillStyle = locked ? LOCKED_COLOR : selected ? '#141414' : TEXT_COLOR;
-    const label = locked ? `${phase.id} 🔒` : String(phase.id);
-    ctx.fillText(label, x + buttonW / 2, y + buttonH / 2);
-
-    x += buttonW + gap;
+    const label = locked ? `${rect.phaseId} 🔒` : String(rect.phaseId);
+    ctx.fillText(label, rect.x + rect.w / 2, y + rect.h / 2);
   }
 
   ctx.fillStyle = MUTED_COLOR;
   ctx.font = '10px ui-monospace, monospace';
   ctx.textBaseline = 'top';
-  ctx.fillText('Teclas 1, 2 ou 3 para escolher a fase', screenW / 2, y + buttonH + 8);
+  ctx.fillText('Teclas 1, 2 ou 3 · ou clique na fase', screenW / 2, y + PHASE_BUTTON_H + 8);
 }
 
 export function createSnakeMinigame({
@@ -419,6 +448,7 @@ export function createSnakeMinigame({
 
     draw(ctx, screenW, screenH) {
       const { gridSize } = state;
+      const { boardX, boardY, boardW, boardH, cellSize } = getBoardLayout(screenW, screenH, gridSize);
 
       ctx.save();
       ctx.imageSmoothingEnabled = false;
@@ -426,18 +456,6 @@ export function createSnakeMinigame({
       ctx.fillRect(0, 0, screenW, screenH);
 
       const margin = 16;
-      const headerH = 96;
-      const footerH = 28;
-      const maxBoardW = screenW - margin * 2;
-      const maxBoardH = screenH - margin * 2 - headerH - footerH;
-      const cellSize = Math.max(
-        8,
-        Math.floor(Math.min(maxBoardW / gridSize, maxBoardH / gridSize))
-      );
-      const boardW = cellSize * gridSize;
-      const boardH = cellSize * gridSize;
-      const boardX = Math.round((screenW - boardW) / 2);
-      const boardY = Math.round(margin + headerH);
       const inset = Math.max(1, Math.floor(cellSize * 0.1));
       const animT =
         state.status === 'playing'
@@ -545,6 +563,21 @@ export function createSnakeMinigame({
       }
 
       ctx.restore();
+    },
+
+    handlePointer({ x, y, screenW, screenH }) {
+      if (state.status !== 'waiting') return false;
+
+      const { boardY, boardH } = getBoardLayout(screenW, screenH, state.gridSize);
+      const selectorY = boardY + boardH / 2 - 36;
+
+      for (const rect of getPhaseButtonRects(screenW, selectorY)) {
+        if (!pointInRect(x, y, rect)) continue;
+        if (rect.phaseId > unlockedPhase) return true;
+        return selectPhase(rect.phaseId);
+      }
+
+      return false;
     },
 
     destroy() {

@@ -26,6 +26,39 @@ const SLOT_GAP_X = 18;
 const SLOT_LABEL_HEIGHT = 16;
 const SLOT_ROW_GAP = 10;
 
+function pointInRect(x, y, rect) {
+  return x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
+}
+
+function getWardrobeLayout(screenW, screenH) {
+  const margin = 16;
+  const slotSize = Math.min(
+    88,
+    Math.floor((screenW - margin * 2 - (WARDROBE_COLUMNS - 1) * SLOT_GAP_X) / WARDROBE_COLUMNS)
+  );
+  const slotRowPitch = slotSize + SLOT_LABEL_HEIGHT + SLOT_ROW_GAP;
+  const gridW = WARDROBE_COLUMNS * slotSize + (WARDROBE_COLUMNS - 1) * SLOT_GAP_X;
+  const rows = Math.ceil(WARDROBE_SLOT_COUNT / WARDROBE_COLUMNS);
+  const gridH = (rows - 1) * slotRowPitch + slotSize + SLOT_LABEL_HEIGHT;
+  const gridX = Math.round((screenW - gridW) / 2);
+  const gridY = Math.round((screenH - gridH) / 2);
+  const slots = [];
+
+  for (let index = 0; index < WARDROBE_SLOT_COUNT; index++) {
+    const row = Math.floor(index / WARDROBE_COLUMNS);
+    const col = index % WARDROBE_COLUMNS;
+    slots.push({
+      index,
+      x: gridX + col * (slotSize + SLOT_GAP_X),
+      y: gridY + row * slotRowPitch,
+      w: slotSize,
+      h: slotSize,
+    });
+  }
+
+  return { gridX, gridY, gridW, gridH, slotSize, slotRowPitch, slots };
+}
+
 function buildSlots(unlockedSkins) {
   const wardrobeSkins = listWardrobeSkins(unlockedSkins);
   const slots = [];
@@ -128,7 +161,7 @@ export function createWardrobeMinigame({
   let unlockedSkins = normalizeUnlockedSkins(initialUnlockedSkins);
   let slots = buildSlots(unlockedSkins);
   let selectedIndex = 0;
-  let statusMessage = 'Setas para escolher · Enter para equipar';
+  let statusMessage = 'Clique ou use as setas · clique de novo para equipar';
   let moveCooldown = 0;
 
   function applyAppearance(skinId) {
@@ -195,22 +228,14 @@ export function createWardrobeMinigame({
     },
 
     draw(ctx, screenW, screenH) {
+      const { gridX, gridY, gridH, slotSize, slotRowPitch } = getWardrobeLayout(screenW, screenH);
+
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = OVERLAY_BG;
       ctx.fillRect(0, 0, screenW, screenH);
 
       const margin = 16;
-      const slotSize = Math.min(
-        88,
-        Math.floor((screenW - margin * 2 - (WARDROBE_COLUMNS - 1) * SLOT_GAP_X) / WARDROBE_COLUMNS)
-      );
-      const slotRowPitch = slotSize + SLOT_LABEL_HEIGHT + SLOT_ROW_GAP;
-      const gridW = WARDROBE_COLUMNS * slotSize + (WARDROBE_COLUMNS - 1) * SLOT_GAP_X;
-      const rows = Math.ceil(WARDROBE_SLOT_COUNT / WARDROBE_COLUMNS);
-      const gridH = (rows - 1) * slotRowPitch + slotSize + SLOT_LABEL_HEIGHT;
-      const gridX = Math.round((screenW - gridW) / 2);
-      const gridY = Math.round((screenH - gridH) / 2);
 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -271,6 +296,30 @@ export function createWardrobeMinigame({
       ctx.fillText(statusMessage, screenW / 2, gridY + gridH + 18);
 
       ctx.restore();
+    },
+
+    handlePointer({ x, y, screenW, screenH }) {
+      const { slots: slotRects } = getWardrobeLayout(screenW, screenH);
+
+      for (const rect of slotRects) {
+        if (!pointInRect(x, y, rect)) continue;
+
+        if (selectedIndex === rect.index) {
+          void equipSelectedSlot();
+          return true;
+        }
+
+        selectedIndex = rect.index;
+        const slot = slotAt(slots, rect.index);
+        if (slot.kind === 'skin') {
+          statusMessage = `${slot.label} — clique de novo para equipar`;
+        } else {
+          statusMessage = 'Este slot está vazio.';
+        }
+        return true;
+      }
+
+      return false;
     },
 
     destroy() {

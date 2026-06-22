@@ -197,6 +197,22 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
     }
   }
 
+  function onCanvasPointerDown(event) {
+    if (!minigame?.handlePointer || viewW <= 0 || viewH <= 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const screenW = canvas.width / dpr;
+    const screenH = canvas.height / dpr;
+
+    if (minigame.handlePointer({ x, y, screenW, screenH })) {
+      event.preventDefault();
+    }
+  }
+
   function tick(now) {
     if (!running) return;
 
@@ -275,6 +291,8 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
 
   requestAnimationFrame(tick);
 
+  canvas.addEventListener('mousedown', onCanvasPointerDown);
+
   return {
     setRemotePlayers,
     resize,
@@ -303,6 +321,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       running = false;
       tickListeners.clear();
       closeMinigame();
+      canvas.removeEventListener('mousedown', onCanvasPointerDown);
       input.destroy();
       window.removeEventListener('resize', resize);
       document.removeEventListener('fullscreenchange', resize);
