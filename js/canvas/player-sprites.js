@@ -3,7 +3,7 @@
  */
 
 import { resolveAsset } from '../config.js';
-import { REGISTRATION_PLACEHOLDER_COLOR } from '../skins.js';
+import { REGISTRATION_PLACEHOLDER_COLOR } from '../skins.js?v=skins3';
 
 export const FRAME_W = 6;
 export const FRAME_H = 8;

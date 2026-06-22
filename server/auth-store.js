@@ -138,6 +138,8 @@ export function createAuthStore({ sessionSecret }) {
   }
 
   const DEFAULT_SKIN_ID = 'default';
+  const A_BRASILEIRA_SKIN_ID = 'a_brasileira';
+  const ALWAYS_UNLOCKED_SKIN_IDS = [DEFAULT_SKIN_ID, A_BRASILEIRA_SKIN_ID];
   const SNAKE_PHASE_GRID_SIZES = { 1: 6, 2: 12, 3: 18 };
   const SNAKE_SKIN_UNLOCK_BY_PHASE = { 2: 'stick_man', 3: 'tree_disguise' };
 
@@ -164,9 +166,15 @@ export function createAuthStore({ sessionSecret }) {
   }
 
   function normalizeUnlockedSkins(value) {
-    if (!Array.isArray(value) || !value.length) return [DEFAULT_SKIN_ID];
-    const ids = value.map((entry) => String(entry).trim()).filter(Boolean);
-    return ids.includes(DEFAULT_SKIN_ID) ? ids : [DEFAULT_SKIN_ID, ...ids];
+    const merged = [...ALWAYS_UNLOCKED_SKIN_IDS];
+    if (!Array.isArray(value) || !value.length) return merged;
+
+    for (const entry of value) {
+      const id = String(entry).trim();
+      if (id && !merged.includes(id)) merged.push(id);
+    }
+
+    return merged;
   }
 
   function normalizeSkinFields(user) {
@@ -271,7 +279,7 @@ export function createAuthStore({ sessionSecret }) {
       character_color: character,
       registration_color: character,
       active_skin_id: DEFAULT_SKIN_ID,
-      unlocked_skins: [DEFAULT_SKIN_ID],
+      unlocked_skins: [...ALWAYS_UNLOCKED_SKIN_IDS],
       status: 'pending',
       salt,
       passwordHash: hashPassword(password, salt),

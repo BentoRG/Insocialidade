@@ -7,10 +7,11 @@ import {
   WARDROBE_COLUMNS,
   WARDROBE_SLOT_COUNT,
   listWardrobeSkins,
+  normalizeUnlockedSkins,
   resolveSkinAppearance,
-} from '../skins.js';
-import { saveActiveSkin } from '../skin-store.js';
-import { drawSkinFrame, getPlayerSpriteSheet } from './player-sprites.js?v=sprites2';
+} from '../skins.js?v=skins3';
+import { drawSkinFrame, getPlayerSpriteSheet } from './player-sprites.js?v=sprites3';
+import { saveActiveSkin } from '../skin-store.js?v=skinstore3';
 
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
 const PANEL_BG = '#141414';
@@ -124,7 +125,7 @@ export function createWardrobeMinigame({
   onClose,
 } = {}) {
   let activeSkinId = initialActiveSkinId;
-  let unlockedSkins = [...initialUnlockedSkins];
+  let unlockedSkins = normalizeUnlockedSkins(initialUnlockedSkins);
   let slots = buildSlots(unlockedSkins);
   let selectedIndex = 0;
   let statusMessage = 'Setas para escolher · Enter para equipar';

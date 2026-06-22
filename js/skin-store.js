@@ -8,7 +8,7 @@ import {
   normalizeSkinState,
   normalizeUnlockedSkins,
   resolveSkinAppearance,
-} from './skins.js';
+} from './skins.js?v=skins3';
 
 const SKIN_STATE_KEY = 'insocialidade_skin_state';
 
@@ -53,7 +53,24 @@ export function loadSkinState(userId, profile = {}) {
     unlocked_skins: profile.unlocked_skins || local?.unlocked_skins || [DEFAULT_SKIN_ID],
   };
 
-  return normalizeSkinState(mergedProfile);
+  const state = normalizeSkinState(mergedProfile);
+  const storedUnlocked = normalizeUnlockedSkins(local?.unlocked_skins);
+
+  if (
+    !local ||
+    local.registration_color !== state.registrationColor ||
+    local.active_skin_id !== state.activeSkinId ||
+    JSON.stringify(storedUnlocked) !== JSON.stringify(state.unlockedSkins)
+  ) {
+    writeStoredSkinState(userId, {
+      registration_color: state.registrationColor,
+      active_skin_id: state.activeSkinId,
+      unlocked_skins: state.unlockedSkins,
+      character_color: state.characterColor,
+    });
+  }
+
+  return state;
 }
 
 export function applyUnlockedSkins(userId, unlockedSkins, profile = {}) {

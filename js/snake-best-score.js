@@ -4,8 +4,8 @@
 
 import { apiSaveSnakeBestScore, getStoredSession, saveSession } from './api.js';
 import { SNAKE_MAX_PHASE, getSnakePhaseMaxScore } from './snake-progress.js';
-import { getSnakeSkinUnlockId } from './skins.js';
-import { applyUnlockedSkins, loadSkinState } from './skin-store.js';
+import { getSnakeSkinUnlockId } from './skins.js?v=skins3';
+import { applyUnlockedSkins, loadSkinState } from './skin-store.js?v=skinstore3';
 
 const SNAKE_BEST_KEY = 'insocialidade_snake_best_phases_v2';
 const LEGACY_SNAKE_BEST_KEYS = [

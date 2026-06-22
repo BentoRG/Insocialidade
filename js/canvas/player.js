@@ -3,14 +3,14 @@
  */
 
 import { moveWithCollision } from './collision.js?v=canvas18';
-import { resolveSkinAppearance } from '../skins.js';
+import { resolveSkinAppearance } from '../skins.js?v=skins3';
 import {
   drawSkinFrame,
   getPlayerAnimFrame,
   getPlayerSpriteSheet,
   FRAME_W,
   FRAME_H,
-} from './player-sprites.js?v=sprites2';
+} from './player-sprites.js?v=sprites3';
 
 const BODY_PX = 6;
 const LEG_H_PX = 2;
@@ -20,12 +20,13 @@ const OUTLINE_PX = 1;
 
 export { FRAME_W, FRAME_H, SPRITE_H_PX as PLAYER_SPRITE_H };
 
-export function createLocalPlayer({ x, y, color, username, skinId = 'default' }) {
+export function createLocalPlayer({ x, y, color, username, skinId = 'default', registrationColor }) {
   return {
     id: 'local',
     x,
     y,
     color,
+    registrationColor: registrationColor || color,
     skinId,
     username,
     facing: 'down',
@@ -233,7 +234,10 @@ export function drawPlayer(
 ) {
   const screenX = (player.x - cameraX) * scale;
   const screenY = (player.y - cameraY) * scale;
-  const appearance = resolveSkinAppearance(player.skinId || 'default', player.color || '#4a4a4a');
+  const appearance = resolveSkinAppearance(
+    player.skinId || 'default',
+    player.registrationColor || player.color || '#4a4a4a'
+  );
   const sheet = getPlayerSpriteSheet();
   const animFrame = getPlayerAnimFrame(player);
   const drawn = sheet

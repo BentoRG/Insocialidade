@@ -7,17 +7,17 @@ import { CONFIG, resolveAsset } from './config.js?v=auth19';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas25';
-import { createLocalPlayer } from './canvas/player.js?v=canvas32';
-import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites2';
+import { createLocalPlayer } from './canvas/player.js?v=canvas33';
+import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites3';
 import { createGameEngine } from './canvas/engine.js?v=canvas42';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake16';
-import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe9';
+import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe10';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt9';
-import { loadSnakeBestScores } from './snake-best-score.js?v=snakebest3';
+import { loadSnakeBestScores } from './snake-best-score.js?v=snakebest4';
 import { loadSnakeProgress } from './snake-progress.js?v=snakeprog2';
-import { loadSkinState } from './skin-store.js?v=skinstore2';
+import { loadSkinState } from './skin-store.js?v=skinstore3';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -551,6 +551,7 @@ async function init() {
     x: spawn.x,
     y: spawn.y,
     color: skinState.characterColor,
+    registrationColor: skinState.registrationColor,
     skinId: skinState.activeSkinId,
     username: profile.username,
   });

@@ -3,13 +3,17 @@
  */
 
 export const DEFAULT_SKIN_ID = 'default';
+export const A_BRASILEIRA_SKIN_ID = 'a_brasileira';
 export const REGISTRATION_PLACEHOLDER_COLOR = '#990030';
 const SKIN_SLOT_COUNT = 20;
 
+export const ALWAYS_UNLOCKED_SKIN_IDS = [DEFAULT_SKIN_ID, A_BRASILEIRA_SKIN_ID];
+
 export const SKIN_CATALOG = [
-  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: false },
+  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: 'placeholder' },
   { id: 'stick_man', label: 'Stick Man', sheetIndex: 1, tint: 'placeholder' },
   { id: 'tree_disguise', label: 'Desfarce de Árvore', sheetIndex: 2, tint: 'placeholder' },
+  { id: A_BRASILEIRA_SKIN_ID, label: 'À Brasileira', sheetIndex: 3, tint: false },
 ];
 
 export const SNAKE_SKIN_UNLOCK_BY_PHASE = {
@@ -72,9 +76,15 @@ export function listWardrobeSkins(unlockedSkins) {
 }
 
 export function normalizeUnlockedSkins(value) {
-  if (!Array.isArray(value) || !value.length) return [DEFAULT_SKIN_ID];
-  const ids = value.map((entry) => String(entry).trim()).filter(Boolean);
-  return ids.includes(DEFAULT_SKIN_ID) ? ids : [DEFAULT_SKIN_ID, ...ids];
+  const merged = [...ALWAYS_UNLOCKED_SKIN_IDS];
+  if (!Array.isArray(value) || !value.length) return merged;
+
+  for (const entry of value) {
+    const id = String(entry).trim();
+    if (id && !merged.includes(id)) merged.push(id);
+  }
+
+  return merged;
 }
 
 export function normalizeSkinState(profile = {}) {
