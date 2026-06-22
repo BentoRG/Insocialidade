@@ -7,7 +7,7 @@
  */
 
 /** Incrementar ao publicar mapa/paleta — força download de TMJ, PNG e JS. */
-export const ASSET_VERSION = 'characters4';
+export const ASSET_VERSION = 'characters5';
 
 export const CONFIG = {
   // URL da API de auth (gepetodigital.com quando DNS propagar; timgo.uk ativo agora)
