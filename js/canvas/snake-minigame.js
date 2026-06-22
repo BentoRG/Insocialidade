@@ -7,8 +7,8 @@ import { saveSnakeUnlockedPhase, SNAKE_MAX_PHASE, getSnakePhaseMaxScore } from '
 
 const PHASES = [
   { id: 1, gridSize: 6 },
-  { id: 2, gridSize: 12 },
-  { id: 3, gridSize: 18 },
+  { id: 2, gridSize: 10 },
+  { id: 3, gridSize: 14 },
 ];
 
 const MOVE_INTERVAL_MS = 220;

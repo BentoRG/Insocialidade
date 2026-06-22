@@ -5,7 +5,7 @@
 const SNAKE_PROGRESS_KEY = 'insocialidade_snake_progress';
 export const SNAKE_MAX_PHASE = 3;
 
-const SNAKE_PHASE_GRID_SIZES = { 1: 6, 2: 12, 3: 18 };
+const SNAKE_PHASE_GRID_SIZES = { 1: 6, 2: 10, 3: 14 };
 
 function normalizePhase(value) {
   const phase = Number(value);

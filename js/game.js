@@ -10,13 +10,13 @@ import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas
 import { createLocalPlayer } from './canvas/player.js?v=canvas33';
 import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites3';
 import { createGameEngine } from './canvas/engine.js?v=canvas42';
-import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake17';
+import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake18';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe10';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
 import { createRealtimePresence } from './realtime.js?v=rt9';
 import { loadSnakeBestScores } from './snake-best-score.js?v=snakebest4';
-import { loadSnakeProgress } from './snake-progress.js?v=snakeprog2';
+import { loadSnakeProgress } from './snake-progress.js?v=snakeprog3';
 import { loadSkinState } from './skin-store.js?v=skinstore3';
 
 const playerName = document.getElementById('player-name');

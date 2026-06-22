@@ -140,7 +140,7 @@ export function createAuthStore({ sessionSecret }) {
   const DEFAULT_SKIN_ID = 'default';
   const A_BRASILEIRA_SKIN_ID = 'a_brasileira';
   const ALWAYS_UNLOCKED_SKIN_IDS = [DEFAULT_SKIN_ID, A_BRASILEIRA_SKIN_ID];
-  const SNAKE_PHASE_GRID_SIZES = { 1: 6, 2: 12, 3: 18 };
+  const SNAKE_PHASE_GRID_SIZES = { 1: 6, 2: 10, 3: 14 };
   const SNAKE_SKIN_UNLOCK_BY_PHASE = { 2: 'stick_man', 3: 'tree_disguise' };
 
   function getSnakePhaseMaxScore(phaseId) {
