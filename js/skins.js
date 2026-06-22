@@ -7,7 +7,7 @@ export const REGISTRATION_PLACEHOLDER_COLOR = '#990030';
 const SKIN_SLOT_COUNT = 20;
 
 export const SKIN_CATALOG = [
-  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: 'full' },
+  { id: DEFAULT_SKIN_ID, label: 'Skin Padrão', sheetIndex: 0, tint: false },
   { id: 'stick_man', label: 'Stick Man', sheetIndex: 1, tint: 'placeholder' },
   { id: 'tree_disguise', label: 'Desfarce de Árvore', sheetIndex: 2, tint: 'placeholder' },
 ];
@@ -45,7 +45,7 @@ export function resolveSkinAppearance(skinId, registrationColor) {
   const tintMode =
     skin.tint === 'placeholder'
       ? 'placeholder'
-      : skin.tint === 'full' || skin.tint === true || skin.id === DEFAULT_SKIN_ID
+      : skin.tint === 'full' || skin.tint === true
         ? 'full'
         : false;
 
