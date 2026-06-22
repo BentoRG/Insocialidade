@@ -36,33 +36,15 @@ function getPhaseConfig(phaseId) {
   return PHASES.find((phase) => phase.id === phaseId) || PHASES[0];
 }
 
-function smoothstep(t) {
-  const clamped = Math.max(0, Math.min(1, t));
-  return clamped * clamped * (3 - 2 * clamped);
-}
-
 function cloneSnake(snake) {
   return snake.map((segment) => ({ x: segment.x, y: segment.y }));
 }
-
-const TURN_COMMIT_RATIO = 0.45;
 
 function applyQueuedDirection(state, nextDir) {
   if (!nextDir || isOpposite(nextDir, state.direction)) return false;
   if (nextDir === state.queuedDirection) return false;
 
-  const previousQueued = state.queuedDirection;
   state.queuedDirection = nextDir;
-
-  if (
-    state.status === 'playing' &&
-    nextDir !== state.direction &&
-    previousQueued === state.direction &&
-    state.moveTimer >= MOVE_INTERVAL_MS * TURN_COMMIT_RATIO
-  ) {
-    state.moveTimer = MOVE_INTERVAL_MS;
-  }
-
   return true;
 }
 
@@ -328,7 +310,7 @@ export function createSnakeMinigame({
     state.queuedDirection = nextDir;
     state.direction = nextDir;
     state.fromSnake = cloneSnake(state.snake);
-    state.moveTimer = MOVE_INTERVAL_MS;
+    state.moveTimer = 0;
   }
 
   function selectPhase(phaseId) {
@@ -427,6 +409,10 @@ export function createSnakeMinigame({
       if (state.moveTimer < MOVE_INTERVAL_MS) return;
 
       state.moveTimer -= MOVE_INTERVAL_MS;
+      if (state.moveTimer >= MOVE_INTERVAL_MS) {
+        state.moveTimer = 0;
+      }
+
       state.fromSnake = cloneSnake(state.snake);
       stepSnake();
     },
@@ -455,7 +441,7 @@ export function createSnakeMinigame({
       const inset = Math.max(1, Math.floor(cellSize * 0.1));
       const animT =
         state.status === 'playing'
-          ? smoothstep(state.moveTimer / MOVE_INTERVAL_MS)
+          ? Math.min(1, Math.max(0, state.moveTimer / MOVE_INTERVAL_MS))
           : 1;
 
       ctx.textAlign = 'center';
