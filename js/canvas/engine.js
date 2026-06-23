@@ -3,7 +3,7 @@
  */
 
 import { createInput } from './input.js?v=canvas22';
-import { createMinimap } from './minimap.js?v=canvas34';
+import { createMinimap } from './minimap.js?v=canvas35';
 import {
   createRemotePlayer,
   syncRemotePlayer,
