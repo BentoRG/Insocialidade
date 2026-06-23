@@ -77,12 +77,48 @@
   </properties>
  </tile>
  
- <tile id="11"/>
- <tile id="12"/>
- <tile id="13"/>
- <tile id="14"/>
- <tile id="15"/>
- <tile id="16"/>
+ <tile id="11">
+  <properties>
+   <property name="tipo" value="pinguim"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
+ <tile id="12">
+  <properties>
+   <property name="tipo" value="galinha"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
+ <tile id="13">
+  <properties>
+   <property name="tipo" value="gnomo"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
+ <tile id="14">
+  <properties>
+   <property name="tipo" value="trivial"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
+ <tile id="15">
+  <properties>
+   <property name="tipo" value="nenem leve"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
+ <tile id="16">
+  <properties>
+   <property name="tipo" value="banana"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
  <tile id="17"/>
  <tile id="18"/>
  <tile id="19"/>
