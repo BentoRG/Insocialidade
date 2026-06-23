@@ -3,7 +3,7 @@
  * requireAuth() é executado imediatamente — bloqueia acesso direto à URL.
  */
 
-import { CONFIG, resolveAsset } from './config.js?v=auth19';
+import { CONFIG, resolveAsset } from './config.js?v=auth20';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas25';
