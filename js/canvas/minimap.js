@@ -1,10 +1,11 @@
 /**
- * Minimapa — pré-render do terreno + retângulo da viewport.
+ * Minimapa — pré-render do terreno + marcador da posição do jogador.
  */
 
 const PANEL_BG = 'rgba(0, 0, 0, 0.55)';
 const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
-const VIEWPORT_STROKE = 'rgba(255, 255, 255, 0.9)';
+const PLAYER_MARKER_FILL = 'rgba(255, 255, 255, 0.95)';
+const PLAYER_MARKER_STROKE = 'rgba(0, 0, 0, 0.9)';
 
 function bakeMapSurface(map) {
   const canvas = document.createElement('canvas');
@@ -13,7 +14,7 @@ function bakeMapSurface(map) {
 
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  map.draw(ctx, 0, 0, map.pixelWidth, map.pixelHeight, 1 / map.tileWidth);
+  map.draw(ctx, 0, 0, map.pixelWidth, map.pixelHeight, 1 / map.tileWidth, { outlines: false });
 
   return canvas;
 }
@@ -28,7 +29,7 @@ export function createMinimap(map) {
   const surface = bakeMapSurface(map);
 
   return {
-    draw(ctx, { camera, viewW, viewH, screenW, screenH, heightFraction }) {
+    draw(ctx, { playerX, playerY, screenW, screenH, heightFraction }) {
       const display = computeDisplaySize(map.width, map.height, screenH, heightFraction);
       const panelW = display.width + 4;
       const panelH = display.height + 4;
@@ -49,14 +50,17 @@ export function createMinimap(map) {
       const mapY = y + 2;
       ctx.drawImage(surface, mapX, mapY, display.width, display.height);
 
-      const vx = mapX + (camera.x / map.pixelWidth) * display.width;
-      const vy = mapY + (camera.y / map.pixelHeight) * display.height;
-      const vw = (viewW / map.pixelWidth) * display.width;
-      const vh = (viewH / map.pixelHeight) * display.height;
+      const markerX = mapX + (playerX / map.pixelWidth) * display.width;
+      const markerY = mapY + (playerY / map.pixelHeight) * display.height;
+      const markerRadius = 3;
 
-      ctx.strokeStyle = VIEWPORT_STROKE;
+      ctx.fillStyle = PLAYER_MARKER_FILL;
+      ctx.strokeStyle = PLAYER_MARKER_STROKE;
       ctx.lineWidth = 1;
-      ctx.strokeRect(vx + 0.5, vy + 0.5, Math.max(1, vw - 1), Math.max(1, vh - 1));
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, markerRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
 
       ctx.restore();
     },

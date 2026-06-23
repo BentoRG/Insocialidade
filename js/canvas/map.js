@@ -380,7 +380,7 @@ export async function loadMap(mapUrl) {
       return (collisionData[idx] || 0) > 0;
     },
 
-    draw(ctx, cameraX, cameraY, viewW, viewH, scale) {
+    draw(ctx, cameraX, cameraY, viewW, viewH, scale, { outlines = true } = {}) {
       const startCol = Math.max(0, Math.floor(cameraX / tileWidth));
       const startRow = Math.max(0, Math.floor(cameraY / tileHeight));
       const endCol = Math.min(mapWidth, Math.ceil((cameraX + viewW) / tileWidth) + 1);
@@ -403,7 +403,7 @@ export async function loadMap(mapUrl) {
             const destX = Math.round((col * tileWidth - cameraX) * scale);
             const destY = Math.round((row * tileHeight - cameraY) * scale);
             const px = scale;
-            const mask = outlinedTileMasks.get(gid);
+            const mask = outlines ? outlinedTileMasks.get(gid) : null;
 
             if (mask) {
               drawTileOutline(ctx, destX, destY, px, mask);

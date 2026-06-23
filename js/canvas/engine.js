@@ -3,7 +3,7 @@
  */
 
 import { createInput } from './input.js?v=canvas22';
-import { createMinimap } from './minimap.js?v=canvas33';
+import { createMinimap } from './minimap.js?v=canvas34';
 import {
   createRemotePlayer,
   syncRemotePlayer,
@@ -182,9 +182,8 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       ctx.fillRect(0, 0, screenW, screenH);
 
       minimap.draw(ctx, {
-        camera,
-        viewW,
-        viewH,
+        playerX: localPlayer.x,
+        playerY: localPlayer.y,
         screenW,
         screenH,
         heightFraction: PAUSED_MINIMAP_HEIGHT,

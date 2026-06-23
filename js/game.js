@@ -6,10 +6,10 @@
 import { CONFIG, resolveAsset } from './config.js?v=auth21';
 import { requireAuth, logout } from './auth.js';
 import { getStoredSession, apiListMembers } from './api.js';
-import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas26';
+import { loadMap, isNearArbusto, isNearTileType } from './canvas/map.js?v=canvas27';
 import { createLocalPlayer } from './canvas/player.js?v=canvas33';
 import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites3';
-import { createGameEngine } from './canvas/engine.js?v=canvas43';
+import { createGameEngine } from './canvas/engine.js?v=canvas44';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake19';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe11';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
