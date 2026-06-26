@@ -12,7 +12,7 @@ import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites3';
 import { createGameEngine } from './canvas/engine.js?v=canvas46';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake19';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe11';
-import { createHousePasswordMinigame } from './canvas/house-password-minigame.js?v=housepwd4';
+import { createHousePasswordMinigame } from './canvas/house-password-minigame.js?v=housepwd5';
 import { createHouseInteriorMinigame } from './canvas/house-interior-minigame.js?v=houseint1';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
@@ -20,6 +20,7 @@ import { createRealtimePresence } from './realtime.js?v=rt9';
 import { loadSnakeBestScores } from './snake-best-score.js?v=snakebest4';
 import { loadSnakeProgress } from './snake-progress.js?v=snakeprog3';
 import { loadSkinState } from './skin-store.js?v=skinstore3';
+import { verifyHousePassword } from './house-password-store.js?v=housepwd1';
 
 const playerName = document.getElementById('player-name');
 const playerAvatar = document.getElementById('player-avatar');
@@ -70,6 +71,8 @@ let playerProfile = null;
 let memberDirectory = [];
 /** @type {Set<string>} */
 let onlineUserIds = new Set();
+/** @type {{ houseId: string, exteriorX: number, exteriorY: number } | null} */
+let activeEnterPassword = null;
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -215,13 +218,140 @@ function getNearestInteractiveHouse() {
   };
 }
 
+function isFourDigitPassword(value) {
+  return /^\d{4}$/.test(String(value || '').trim());
+}
+
+function setHousePasswordError(message) {
+  if (!housePasswordError) return;
+  housePasswordError.textContent = message || '';
+  housePasswordError.hidden = !message;
+}
+
+function hideEnterPasswordPanel() {
+  activeEnterPassword = null;
+  if (housePasswordPanel) housePasswordPanel.hidden = true;
+  if (housePasswordInput) housePasswordInput.value = '';
+  setHousePasswordError('');
+}
+
+function showEnterPasswordPanel(nearHouse) {
+  activeEnterPassword = {
+    houseId: nearHouse.houseId,
+    exteriorX: nearHouse.exteriorX,
+    exteriorY: nearHouse.exteriorY,
+  };
+
+  if (housePasswordQuestion) {
+    housePasswordQuestion.textContent = 'Qual eh a senha pra entrar nessa casa?';
+  }
+  if (housePasswordPanel) housePasswordPanel.hidden = false;
+  if (housePasswordInput) {
+    housePasswordInput.value = '';
+    requestAnimationFrame(() => housePasswordInput.focus());
+  }
+  setHousePasswordError('');
+  if (casaInterativaPromptBtn) casaInterativaPromptBtn.hidden = true;
+}
+
+function updateEnterPasswordProximity() {
+  if (!activeEnterPassword) return;
+
+  const nearHouse = getNearestInteractiveHouse();
+  if (!nearHouse || nearHouse.houseId !== activeEnterPassword.houseId) {
+    hideEnterPasswordPanel();
+    updateProximityPrompts();
+  }
+}
+
+async function submitEnterPassword() {
+  if (!activeEnterPassword || !engine) return;
+
+  const token = getToken();
+  if (!token) return;
+
+  const nearHouse = getNearestInteractiveHouse();
+  if (!nearHouse || nearHouse.houseId !== activeEnterPassword.houseId) {
+    hideEnterPasswordPanel();
+    updateProximityPrompts();
+    return;
+  }
+
+  const guess = housePasswordInput?.value?.trim() || '';
+  if (!isFourDigitPassword(guess)) {
+    setHousePasswordError('Digite 4 numeros.');
+    return;
+  }
+
+  setHousePasswordError('');
+
+  try {
+    const valid = await verifyHousePassword(token, activeEnterPassword.houseId, guess);
+    if (!valid) {
+      setHousePasswordError('Senha incorreta.');
+      return;
+    }
+
+    const entry = { ...activeEnterPassword };
+    hideEnterPasswordPanel();
+    openHouseInterior({
+      houseId: entry.houseId,
+      exteriorX: entry.exteriorX,
+      exteriorY: entry.exteriorY,
+    });
+  } catch (err) {
+    setHousePasswordError(err.message || 'Erro ao verificar senha.');
+  }
+}
+
+function cancelEnterPassword() {
+  if (!activeEnterPassword) return;
+  hideEnterPasswordPanel();
+  updateProximityPrompts();
+}
+
+function onHousePasswordConfirm(event) {
+  event.preventDefault();
+
+  if (activeEnterPassword) {
+    void submitEnterPassword();
+    return;
+  }
+
+  const minigame = engine?.getMinigame();
+  if (minigame?.getKind?.() === 'house_password' && minigame.getMode?.() === 'set') {
+    void minigame.submit?.();
+  }
+}
+
+function onHousePasswordCancel(event) {
+  event.preventDefault();
+
+  if (activeEnterPassword) {
+    cancelEnterPassword();
+    return;
+  }
+
+  const minigame = engine?.getMinigame();
+  if (minigame?.getKind?.() === 'house_password' && minigame.getMode?.() === 'set') {
+    minigame.cancel?.();
+  }
+}
+
+function onHousePasswordInputKeyDown(event) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  onHousePasswordConfirm(event);
+}
+
 function updateCasaInterativaPrompt() {
   if (!casaInterativaPromptBtn || !engine || !loadedMap) return;
 
   const minigame = engine.getMinigame();
   const houseKind = minigame?.getKind?.();
   const nearHouse = getNearestInteractiveHouse();
-  const show = Boolean(nearHouse) && !engine.isMinigameOpen();
+  const show =
+    Boolean(nearHouse) && !engine.isMinigameOpen() && !activeEnterPassword;
   const stackIndex = countVisiblePrompts();
 
   casaInterativaPromptBtn.hidden = !show;
@@ -233,9 +363,6 @@ function updateCasaInterativaPrompt() {
   }
   if (casaInterativaChangePwdBtn) {
     casaInterativaChangePwdBtn.hidden = houseKind !== 'house_interior';
-  }
-  if (housePasswordPanel && houseKind !== 'house_password') {
-    housePasswordPanel.hidden = true;
   }
 }
 
@@ -283,14 +410,17 @@ function updateWardrobeControls() {
 function updateCasaInterativaControls() {
   const minigame = engine?.getMinigame();
   const kind = minigame?.getKind?.();
-  const passwordOpen = Boolean(engine?.isMinigameOpen() && kind === 'house_password');
+  const setPasswordOpen = Boolean(engine?.isMinigameOpen() && kind === 'house_password');
   const interiorOpen = Boolean(engine?.isMinigameOpen() && kind === 'house_interior');
 
   if (casaInterativaExitBtn) casaInterativaExitBtn.hidden = !interiorOpen;
   if (casaInterativaChangePwdBtn) casaInterativaChangePwdBtn.hidden = !interiorOpen;
-  if (housePasswordPanel) housePasswordPanel.hidden = !passwordOpen;
 
-  if (passwordOpen || interiorOpen) {
+  if (housePasswordPanel) {
+    housePasswordPanel.hidden = !activeEnterPassword && !setPasswordOpen;
+  }
+
+  if (setPasswordOpen || interiorOpen || activeEnterPassword) {
     if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
     if (casaArmarioPromptBtn) casaArmarioPromptBtn.hidden = true;
     if (casaInterativaPromptBtn) casaInterativaPromptBtn.hidden = true;
@@ -409,14 +539,59 @@ function openWardrobe() {
   updateWardrobeControls();
 }
 
-function getHousePasswordElements() {
-  return {
-    panelEl: housePasswordPanel,
-    inputEl: housePasswordInput,
-    errorEl: housePasswordError,
-    confirmBtn: housePasswordConfirmBtn,
-    cancelBtn: housePasswordCancelBtn,
-  };
+function getHousePasswordValue() {
+  return housePasswordInput?.value || '';
+}
+
+function openHousePassword({ houseId, interiorState }) {
+  if (!engine) return;
+
+  const token = getToken();
+  if (!token) return;
+
+  if (housePasswordQuestion) {
+    housePasswordQuestion.textContent = 'Nova senha (4 digitos):';
+  }
+  if (housePasswordPanel) housePasswordPanel.hidden = false;
+  if (housePasswordInput) {
+    housePasswordInput.value = '';
+    requestAnimationFrame(() => housePasswordInput.focus());
+  }
+  setHousePasswordError('');
+
+  if (casaInterativaPromptBtn) casaInterativaPromptBtn.hidden = true;
+  if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
+  if (casaArmarioPromptBtn) casaArmarioPromptBtn.hidden = true;
+
+  engine.openMinigame(
+    createHousePasswordMinigame({
+      houseId,
+      token,
+      getPasswordValue: getHousePasswordValue,
+      setError: setHousePasswordError,
+      clearError: () => setHousePasswordError(''),
+      onSuccess: () => {
+        if (housePasswordPanel) housePasswordPanel.hidden = true;
+        openHouseInterior({
+          houseId,
+          exteriorX: interiorState.exteriorX,
+          exteriorY: interiorState.exteriorY,
+          interiorState,
+        });
+      },
+      onCancel: () => {
+        engine.closeMinigame();
+        if (housePasswordPanel) housePasswordPanel.hidden = true;
+        openHouseInterior({
+          houseId,
+          exteriorX: interiorState.exteriorX,
+          exteriorY: interiorState.exteriorY,
+          interiorState,
+        });
+      },
+    })
+  );
+  updateCasaInterativaControls();
 }
 
 function openHouseInterior({ houseId, exteriorX, exteriorY, interiorState = null }) {
@@ -445,71 +620,10 @@ function openHouseInterior({ houseId, exteriorX, exteriorY, interiorState = null
   updateCasaInterativaControls();
 }
 
-function openHousePassword({ mode, houseId, exteriorX, exteriorY, interiorState = null }) {
-  if (!engine) return;
-
-  const token = getToken();
-  if (!token) return;
-
-  if (housePasswordQuestion) {
-    housePasswordQuestion.textContent =
-      mode === 'set'
-        ? 'Nova senha (4 digitos):'
-        : 'Qual eh a senha pra entrar nessa casa?';
-  }
-
-  if (casaInterativaPromptBtn) casaInterativaPromptBtn.hidden = true;
-  if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
-  if (casaArmarioPromptBtn) casaArmarioPromptBtn.hidden = true;
-
-  engine.openMinigame(
-    createHousePasswordMinigame({
-      mode,
-      houseId,
-      token,
-      ...getHousePasswordElements(),
-      onSuccess: () => {
-        if (mode === 'enter') {
-          openHouseInterior({ houseId, exteriorX, exteriorY });
-          return;
-        }
-        openHouseInterior({
-          houseId,
-          exteriorX: interiorState?.exteriorX ?? exteriorX,
-          exteriorY: interiorState?.exteriorY ?? exteriorY,
-          interiorState,
-        });
-      },
-      onCancel: () => {
-        if (mode === 'set' && interiorState) {
-          openHouseInterior({
-            houseId,
-            exteriorX: interiorState.exteriorX,
-            exteriorY: interiorState.exteriorY,
-            interiorState,
-          });
-          return;
-        }
-        engine.closeMinigame();
-        if (housePasswordPanel) housePasswordPanel.hidden = true;
-        updateCasaInterativaControls();
-        updateProximityPrompts();
-      },
-      onClose: () => {
-        if (housePasswordPanel) housePasswordPanel.hidden = true;
-      },
-    })
-  );
-  updateCasaInterativaControls();
-}
-
 function openChangeHousePassword(interiorState) {
   if (!interiorState) return;
   openHousePassword({
-    mode: 'set',
     houseId: interiorState.houseId,
-    exteriorX: interiorState.exteriorX,
-    exteriorY: interiorState.exteriorY,
     interiorState,
   });
 }
@@ -517,19 +631,13 @@ function openChangeHousePassword(interiorState) {
 function openCasaInterativa() {
   const nearHouse = getNearestInteractiveHouse();
   if (!nearHouse) return;
-
-  openHousePassword({
-    mode: 'enter',
-    houseId: nearHouse.houseId,
-    exteriorX: nearHouse.exteriorX,
-    exteriorY: nearHouse.exteriorY,
-  });
+  showEnterPasswordPanel(nearHouse);
 }
 
 function closeCasaInterativa() {
   if (!engine) return;
+  hideEnterPasswordPanel();
   engine.closeMinigame();
-  if (housePasswordPanel) housePasswordPanel.hidden = true;
   updateCasaInterativaControls();
   updateProximityPrompts();
 }
@@ -795,6 +903,9 @@ async function init() {
   casaArmarioExitBtn?.addEventListener('click', () => closeWardrobe());
   casaInterativaPromptBtn?.addEventListener('click', () => openCasaInterativa());
   casaInterativaExitBtn?.addEventListener('click', () => closeCasaInterativa());
+  housePasswordConfirmBtn?.addEventListener('click', onHousePasswordConfirm);
+  housePasswordCancelBtn?.addEventListener('click', onHousePasswordCancel);
+  housePasswordInput?.addEventListener('keydown', onHousePasswordInputKeyDown);
   casaInterativaChangePwdBtn?.addEventListener('click', () => {
     const minigame = engine?.getMinigame();
     if (minigame?.getKind?.() === 'house_interior') {
@@ -860,6 +971,7 @@ async function init() {
   removeChatTick = engine.addTickListener(() => {
     localChat?.update();
     updateSnakeControls();
+    updateEnterPasswordProximity();
     updateCasaInterativaControls();
     updateWardrobeControls();
     updateProximityPrompts();
