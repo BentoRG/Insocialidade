@@ -5,22 +5,6 @@
 import { verifyHousePassword, setHousePassword } from '../house-password-store.js?v=housepwd1';
 
 const OVERLAY_BG = 'rgba(0, 0, 0, 0.72)';
-const PANEL_BG = '#141414';
-const PANEL_BORDER = 'rgba(248, 243, 230, 0.85)';
-const TEXT_COLOR = '#f8f3e6';
-const MUTED_COLOR = '#e6d3a3';
-const ERROR_COLOR = '#e57373';
-
-function getPanelLayout(screenW, screenH) {
-  const panelW = Math.min(320, screenW - 32);
-  const panelH = 160;
-  return {
-    x: Math.round((screenW - panelW) / 2),
-    y: Math.round((screenH - panelH) / 2),
-    w: panelW,
-    h: panelH,
-  };
-}
 
 function isFourDigits(value) {
   return /^\d{4}$/.test(String(value || '').trim());
@@ -49,6 +33,11 @@ export function createHousePasswordMinigame({
       ? 'Nova senha (4 digitos):'
       : 'Qual eh a senha pra entrar nessa casa?';
 
+  function syncQuestionText() {
+    const questionEl = panelEl?.querySelector('.game-house-password__question');
+    if (questionEl) questionEl.textContent = question;
+  }
+
   function setError(message) {
     errorMessage = message || '';
     if (errorEl) {
@@ -59,6 +48,7 @@ export function createHousePasswordMinigame({
 
   function showPanel() {
     if (!panelEl) return;
+    syncQuestionText();
     panelEl.hidden = false;
     if (inputEl) {
       inputEl.value = '';
@@ -141,35 +131,10 @@ export function createHousePasswordMinigame({
     allowsWorldMovement: () => mode === 'enter',
 
     draw(ctx, screenW, screenH) {
-      const panel = getPanelLayout(screenW, screenH);
-
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = OVERLAY_BG;
       ctx.fillRect(0, 0, screenW, screenH);
-
-      ctx.fillStyle = PANEL_BG;
-      ctx.fillRect(panel.x - 2, panel.y - 2, panel.w + 4, panel.h + 4);
-      ctx.strokeStyle = PANEL_BORDER;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(panel.x - 2.5, panel.y - 2.5, panel.w + 5, panel.h + 5);
-
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = TEXT_COLOR;
-      ctx.font = '13px ui-monospace, monospace';
-      ctx.fillText(question, screenW / 2, panel.y + 16);
-
-      ctx.fillStyle = MUTED_COLOR;
-      ctx.font = '11px ui-monospace, monospace';
-      ctx.fillText('Use o campo abaixo para digitar', screenW / 2, panel.y + 38);
-
-      if (errorMessage) {
-        ctx.fillStyle = ERROR_COLOR;
-        ctx.font = '11px ui-monospace, monospace';
-        ctx.fillText(errorMessage, screenW / 2, panel.y + panel.h - 28);
-      }
-
       ctx.restore();
     },
 
