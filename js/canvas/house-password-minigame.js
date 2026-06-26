@@ -137,6 +137,8 @@ export function createHousePasswordMinigame({
   return {
     getKind: () => 'house_password',
     getMode: () => mode,
+    getHouseId: () => houseId,
+    allowsWorldMovement: () => mode === 'enter',
 
     draw(ctx, screenW, screenH) {
       const panel = getPanelLayout(screenW, screenH);

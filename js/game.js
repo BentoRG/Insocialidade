@@ -9,10 +9,10 @@ import { getStoredSession, apiListMembers } from './api.js';
 import { loadMap, isNearArbusto, isNearTileType, findNearestTileOfType, houseIdFromTile } from './canvas/map.js?v=canvas28';
 import { createLocalPlayer } from './canvas/player.js?v=canvas33';
 import { loadPlayerSpriteSheet } from './canvas/player-sprites.js?v=sprites3';
-import { createGameEngine } from './canvas/engine.js?v=canvas45';
+import { createGameEngine } from './canvas/engine.js?v=canvas46';
 import { createSnakeMinigame } from './canvas/snake-minigame.js?v=snake19';
 import { createWardrobeMinigame } from './canvas/wardrobe-minigame.js?v=wardrobe11';
-import { createHousePasswordMinigame } from './canvas/house-password-minigame.js?v=housepwd1';
+import { createHousePasswordMinigame } from './canvas/house-password-minigame.js?v=housepwd2';
 import { createHouseInteriorMinigame } from './canvas/house-interior-minigame.js?v=houseint1';
 import { resolvePlayerSpawn, saveLocalPosition, getCurrentMapId } from './spawn.js?v=spawn1';
 import { createLocalChat } from './local-chat.js?v=chat19';
@@ -70,6 +70,8 @@ let playerProfile = null;
 let memberDirectory = [];
 /** @type {Set<string>} */
 let onlineUserIds = new Set();
+/** House enter prompt dismissed until player leaves proximity. */
+let dismissedHouseEnterId = null;
 
 function getToken() {
   return getStoredSession()?.token || null;
@@ -193,29 +195,87 @@ function countVisiblePrompts() {
   return count;
 }
 
-function updateCasaInterativaPrompt() {
-  if (!casaInterativaPromptBtn || !engine || !loadedMap) return;
+function getNearestInteractiveHouse() {
+  if (!engine || !loadedMap) return null;
+
+  const localPlayer = engine.getLocalPlayer();
+  const nearTile = findNearestTileOfType(
+    loadedMap,
+    'casa_interativa',
+    localPlayer.x,
+    localPlayer.y,
+    1
+  );
+  if (!nearTile) return null;
+
+  const mapId = loadedMap.id || getCurrentMapId(CONFIG.MAP_URL);
+  return {
+    nearTile,
+    houseId: houseIdFromTile(mapId, nearTile.col, nearTile.row),
+    exteriorX: localPlayer.x,
+    exteriorY: localPlayer.y,
+  };
+}
+
+function isEnterPasswordOpenForHouse(houseId) {
+  const minigame = engine?.getMinigame();
+  return (
+    engine?.isMinigameOpen() &&
+    minigame?.getKind?.() === 'house_password' &&
+    minigame?.getMode?.() === 'enter' &&
+    minigame?.getHouseId?.() === houseId
+  );
+}
+
+function updateCasaInterativaProximity() {
+  if (!engine || !loadedMap) return;
 
   const minigame = engine.getMinigame();
   const houseKind = minigame?.getKind?.();
-  const houseFlowOpen =
-    engine.isMinigameOpen() &&
-    (houseKind === 'house_password' || houseKind === 'house_interior');
+  const nearHouse = getNearestInteractiveHouse();
 
-  const localPlayer = engine.getLocalPlayer();
-  const nearTile = findNearestTileOfType(loadedMap, 'casa_interativa', localPlayer.x, localPlayer.y, 1);
-  const show = Boolean(nearTile) && !engine.isMinigameOpen();
-  const stackIndex = countVisiblePrompts();
+  if (!nearHouse) {
+    dismissedHouseEnterId = null;
+    if (houseKind === 'house_password' && minigame?.getMode?.() === 'enter') {
+      closeCasaInterativa();
+    }
+    return;
+  }
 
-  casaInterativaPromptBtn.hidden = !show;
-  casaInterativaPromptBtn.classList.toggle('is-stacked-1', show && stackIndex === 1);
-  casaInterativaPromptBtn.classList.toggle('is-stacked-2', show && stackIndex >= 2);
+  if (houseKind === 'house_password' && minigame?.getMode?.() === 'enter') {
+    if (minigame.getHouseId?.() !== nearHouse.houseId) {
+      closeCasaInterativa();
+    }
+    return;
+  }
+
+  if (engine.isMinigameOpen()) return;
+  if (dismissedHouseEnterId === nearHouse.houseId) return;
+  if (isEnterPasswordOpenForHouse(nearHouse.houseId)) return;
+
+  openHousePassword({
+    mode: 'enter',
+    houseId: nearHouse.houseId,
+    exteriorX: nearHouse.exteriorX,
+    exteriorY: nearHouse.exteriorY,
+  });
+}
+
+function updateCasaInterativaPrompt() {
+  if (!engine || !loadedMap) return;
+
+  const minigame = engine.getMinigame();
+  const houseKind = minigame?.getKind?.();
+
+  if (casaInterativaPromptBtn) {
+    casaInterativaPromptBtn.hidden = true;
+  }
 
   if (casaInterativaExitBtn) {
-    casaInterativaExitBtn.hidden = !houseFlowOpen || houseKind !== 'house_interior';
+    casaInterativaExitBtn.hidden = houseKind !== 'house_interior';
   }
   if (casaInterativaChangePwdBtn) {
-    casaInterativaChangePwdBtn.hidden = !houseFlowOpen || houseKind !== 'house_interior';
+    casaInterativaChangePwdBtn.hidden = houseKind !== 'house_interior';
   }
   if (housePasswordPanel && houseKind !== 'house_password') {
     housePasswordPanel.hidden = true;
@@ -452,6 +512,7 @@ function openHousePassword({ mode, houseId, exteriorX, exteriorY, interiorState 
       token,
       ...getHousePasswordElements(),
       onSuccess: () => {
+        dismissedHouseEnterId = null;
         if (mode === 'enter') {
           openHouseInterior({ houseId, exteriorX, exteriorY });
           return;
@@ -472,6 +533,9 @@ function openHousePassword({ mode, houseId, exteriorX, exteriorY, interiorState 
             interiorState,
           });
           return;
+        }
+        if (mode === 'enter') {
+          dismissedHouseEnterId = houseId;
         }
         engine.closeMinigame();
         if (housePasswordPanel) housePasswordPanel.hidden = true;
@@ -494,30 +558,6 @@ function openChangeHousePassword(interiorState) {
     exteriorX: interiorState.exteriorX,
     exteriorY: interiorState.exteriorY,
     interiorState,
-  });
-}
-
-function openCasaInterativa() {
-  if (!engine || !loadedMap) return;
-
-  const localPlayer = engine.getLocalPlayer();
-  const nearTile = findNearestTileOfType(
-    loadedMap,
-    'casa_interativa',
-    localPlayer.x,
-    localPlayer.y,
-    1
-  );
-  if (!nearTile) return;
-
-  const mapId = loadedMap.id || getCurrentMapId(CONFIG.MAP_URL);
-  const houseId = houseIdFromTile(mapId, nearTile.col, nearTile.row);
-
-  openHousePassword({
-    mode: 'enter',
-    houseId,
-    exteriorX: localPlayer.x,
-    exteriorY: localPlayer.y,
   });
 }
 
@@ -788,7 +828,6 @@ async function init() {
   arbustoPromptBtn?.addEventListener('click', () => openSnakeMinigame());
   casaArmarioPromptBtn?.addEventListener('click', () => openWardrobe());
   casaArmarioExitBtn?.addEventListener('click', () => closeWardrobe());
-  casaInterativaPromptBtn?.addEventListener('click', () => openCasaInterativa());
   casaInterativaExitBtn?.addEventListener('click', () => closeCasaInterativa());
   casaInterativaChangePwdBtn?.addEventListener('click', () => {
     const minigame = engine?.getMinigame();
@@ -856,6 +895,7 @@ async function init() {
     localChat?.update();
     updateSnakeControls();
     updateCasaInterativaControls();
+    updateCasaInterativaProximity();
     updateWardrobeControls();
     updateProximityPrompts();
   });

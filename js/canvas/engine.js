@@ -2,7 +2,7 @@
  * Motor principal — loop, câmera, render.
  */
 
-import { createInput } from './input.js?v=canvas22';
+import { createInput } from './input.js?v=canvas23';
 import { createMinimap } from './minimap.js?v=canvas35';
 import {
   createRemotePlayer,
@@ -224,7 +224,7 @@ export function createGameEngine({ canvas, map, localPlayer, onMove }) {
       return;
     }
 
-    const worldActive = !paused && !minigame;
+    const worldActive = !paused && (!minigame || minigame.allowsWorldMovement?.());
 
     if (worldActive) {
       updateLocalPlayer(localPlayer, dt, map, input, MOVE_SPEED);
