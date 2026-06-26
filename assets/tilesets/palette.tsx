@@ -119,7 +119,13 @@
   </properties>
 </tile>
 
- <tile id="17"/>
+ <tile id="17">
+  <properties>
+   <property name="tipo" value="casa interagivel"/>
+   <property name="colisao" type="bool" value="true"/>
+  </properties>
+</tile>
+
  <tile id="18"/>
  <tile id="19"/>
  <tile id="20"/>
