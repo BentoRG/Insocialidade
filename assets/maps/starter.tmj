@@ -971,6 +971,76 @@
                          "type":"string",
                          "value":"banana"
                         }]
+                }, 
+                {
+                 "id":17,
+                 "properties":[
+                        {
+                         "name":"colisao",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"tipo",
+                         "type":"string",
+                         "value":"casa_interativa"
+                        }]
+                }, 
+                {
+                 "id":18,
+                 "properties":[
+                        {
+                         "name":"colisao",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"tipo",
+                         "type":"string",
+                         "value":"cama"
+                        }]
+                }, 
+                {
+                 "id":19,
+                 "properties":[
+                        {
+                         "name":"colisao",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"tipo",
+                         "type":"string",
+                         "value":"guarda_roupa"
+                        }]
+                }, 
+                {
+                 "id":20,
+                 "properties":[
+                        {
+                         "name":"colisao",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"tipo",
+                         "type":"string",
+                         "value":"abajur"
+                        }]
+                }, 
+                {
+                 "id":21,
+                 "properties":[
+                        {
+                         "name":"colisao",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"tipo",
+                         "type":"string",
+                         "value":"porta_casa"
+                        }]
                 }],
          "tilewidth":16
         }],

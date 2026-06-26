@@ -4,7 +4,7 @@
 
 import { collidesAt } from './collision.js?v=canvas18';
 import { parseRegions, createRegionLookup } from './regions.js?v=canvas20';
-import { isWithinTileRadius } from '../proximity.js';
+import { isWithinTileRadius, tileDistance } from '../proximity.js';
 
 const POCO_TILE_GID = 8;
 const OUTLINE_PX = 1;
@@ -12,6 +12,7 @@ const OUTLINE_PX = 1;
 const OUTLINED_TILE_TIPOS = new Set([
   'arbusto',
   'casa_armario',
+  'casa_interativa',
   'trivial',
   'banana',
   'nenem leve',
@@ -226,6 +227,20 @@ function findTilesByTipo(mapData, layerData, tipo, tipoGidMap) {
   return findTilesByGids(mapData, layerData, tipoGidMap.get(tipo) || []);
 }
 
+function buildMergedTilesByTipo(mapData, groundData, collisionData, tipoGidMap) {
+  /** @type {Record<string, Array<{col: number, row: number}>>} */
+  const merged = {};
+
+  for (const tipo of tipoGidMap.keys()) {
+    const fromCollision = findTilesByTipo(mapData, collisionData, tipo, tipoGidMap);
+    const fromGround = findTilesByTipo(mapData, groundData, tipo, tipoGidMap);
+    if (!fromCollision.length && !fromGround.length) continue;
+    merged[tipo] = [...fromCollision, ...fromGround];
+  }
+
+  return merged;
+}
+
 function isNearTiles(map, tiles, playerX, playerY, radius = 1) {
   if (!tiles?.length) return false;
 
@@ -248,6 +263,40 @@ function isNearTiles(map, tiles, playerX, playerY, radius = 1) {
 export function isNearTileType(map, tipo, playerX, playerY, radius = 1) {
   if (!map?.tilesByTipo) return false;
   return isNearTiles(map, map.tilesByTipo[tipo], playerX, playerY, radius);
+}
+
+export function findNearestTileOfType(map, tipo, playerX, playerY, radius = 1) {
+  if (!map?.tilesByTipo) return null;
+
+  const tiles = map.tilesByTipo[tipo];
+  if (!tiles?.length) return null;
+
+  const tileWidth = map.tileWidth;
+  const tileHeight = map.tileHeight;
+  let nearest = null;
+  let nearestDist = Infinity;
+
+  for (const tile of tiles) {
+    const tileX = tile.col * tileWidth + tileWidth / 2;
+    const tileY = tile.row * tileHeight + tileHeight / 2;
+    if (
+      !isWithinTileRadius(playerX, playerY, tileX, tileY, tileWidth, tileHeight, radius)
+    ) {
+      continue;
+    }
+
+    const dist = tileDistance(playerX, playerY, tileX, tileY, tileWidth, tileHeight);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = tile;
+    }
+  }
+
+  return nearest;
+}
+
+export function houseIdFromTile(mapId, col, row) {
+  return `${mapId}:${col},${row}`;
 }
 
 export function isNearArbusto(map, playerX, playerY, radius = 1) {
@@ -434,12 +483,9 @@ export async function loadMap(mapUrl) {
 
   map.id = getMapId(mapFetchUrl);
   map.defaultSpawn = getDefaultSpawn(map, mapData, collisionData);
-  map.tilesByTipo = {
-    arbusto: findTilesByTipo(mapData, collisionData, 'arbusto', tipoGidMap),
-    casa_armario: findTilesByTipo(mapData, collisionData, 'casa_armario', tipoGidMap),
-  };
-  map.arbustoTiles = map.tilesByTipo.arbusto;
-  map.casaArmarioTiles = map.tilesByTipo.casa_armario;
+  map.tilesByTipo = buildMergedTilesByTipo(mapData, groundData, collisionData, tipoGidMap);
+  map.arbustoTiles = map.tilesByTipo.arbusto || [];
+  map.casaArmarioTiles = map.tilesByTipo.casa_armario || [];
 
   const regions = parseRegions(mapData);
   const regionLookup = createRegionLookup(regions);

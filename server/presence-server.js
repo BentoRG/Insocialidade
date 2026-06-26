@@ -175,6 +175,12 @@ async function handleAuthRoute(req, res) {
     case 'skin_update':
       result = await authStore.saveCharacterSkin(body);
       break;
+    case 'house_password_verify':
+      result = await authStore.verifyHousePassword(body);
+      break;
+    case 'house_password_set':
+      result = await authStore.saveHousePassword(body);
+      break;
     default:
       sendJson(res, 400, { ok: false, error: 'Ação inválida.' });
       return;

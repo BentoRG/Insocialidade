@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(__dirname, 'data');
 const USERS_FILE = resolve(DATA_DIR, 'users.json');
+const HOUSE_PASSWORDS_FILE = resolve(DATA_DIR, 'house_passwords.json');
+const DEFAULT_HOUSE_PASSWORD = '1234';
 
 const VALID_CHARACTER_COLORS = new Set([
   '#27609e',
@@ -25,18 +27,37 @@ export function createAuthStore({ sessionSecret }) {
 
   /** @type {Record<string, object>} */
   let users = {};
+  /** @type {Record<string, string>} */
+  let housePasswords = {};
   let writeQueue = Promise.resolve();
 
   function loadUsers() {
     if (!existsSync(USERS_FILE)) {
       users = {};
+    } else {
+      try {
+        users = JSON.parse(readFileSync(USERS_FILE, 'utf8'));
+      } catch {
+        users = {};
+      }
+    }
+  }
+
+  function loadHousePasswords() {
+    if (!existsSync(HOUSE_PASSWORDS_FILE)) {
+      housePasswords = {};
       return;
     }
     try {
-      users = JSON.parse(readFileSync(USERS_FILE, 'utf8'));
+      housePasswords = JSON.parse(readFileSync(HOUSE_PASSWORDS_FILE, 'utf8'));
     } catch {
-      users = {};
+      housePasswords = {};
     }
+  }
+
+  function persistHousePasswords() {
+    mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(HOUSE_PASSWORDS_FILE, JSON.stringify(housePasswords, null, 2));
   }
 
   function persistUsers() {
@@ -50,6 +71,18 @@ export function createAuthStore({ sessionSecret }) {
   }
 
   loadUsers();
+  loadHousePasswords();
+
+  function normalizeHousePassword(value) {
+    const password = String(value || '').trim();
+    return /^\d{4}$/.test(password) ? password : null;
+  }
+
+  function getStoredHousePassword(houseId) {
+    const key = String(houseId || '').trim();
+    if (!key) return DEFAULT_HOUSE_PASSWORD;
+    return housePasswords[key] || DEFAULT_HOUSE_PASSWORD;
+  }
 
   function simpleHash(input) {
     let hash = 5381;
@@ -496,6 +529,57 @@ export function createAuthStore({ sessionSecret }) {
     return { ok: true, profile: publicProfile(user) };
   }
 
+  async function verifyHousePassword({ token, houseId, guess }) {
+    const userId = verifyToken(token);
+    if (!userId) {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const user = findUserById(userId);
+    if (!user || user.status !== 'active') {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const submitted = normalizeHousePassword(guess);
+    if (!submitted) {
+      return { ok: false, error: 'Senha deve ter 4 digitos.', httpStatus: 400 };
+    }
+
+    const stored = getStoredHousePassword(houseId);
+    return { ok: true, valid: stored === submitted };
+  }
+
+  async function saveHousePassword({ token, houseId, password }) {
+    const userId = verifyToken(token);
+    if (!userId) {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const user = findUserById(userId);
+    if (!user || user.status !== 'active') {
+      return { ok: false, error: 'Sessão inválida.', httpStatus: 401 };
+    }
+
+    const key = String(houseId || '').trim();
+    if (!key) {
+      return { ok: false, error: 'Casa inválida.', httpStatus: 400 };
+    }
+
+    const next = normalizeHousePassword(password);
+    if (!next) {
+      return { ok: false, error: 'Senha deve ter 4 digitos.', httpStatus: 400 };
+    }
+
+    housePasswords[key] = next;
+    await enqueuePersistHousePasswords();
+    return { ok: true };
+  }
+
+  function enqueuePersistHousePasswords() {
+    writeQueue = writeQueue.then(() => persistHousePasswords());
+    return writeQueue;
+  }
+
   return {
     verifyToken,
     register,
@@ -510,6 +594,8 @@ export function createAuthStore({ sessionSecret }) {
     listAccountMembers,
     saveSnakeBestScore,
     saveCharacterSkin,
+    verifyHousePassword,
+    saveHousePassword,
     getUsers: () => ({ ...users }),
   };
 }

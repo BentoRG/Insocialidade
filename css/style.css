@@ -891,6 +891,98 @@ body {
   pointer-events: auto;
 }
 
+.game-casa-interativa-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 92%;
+  max-width: none;
+  text-align: center;
+  white-space: normal;
+  pointer-events: auto;
+}
+
+.game-casa-interativa-prompt.is-stacked-1 {
+  bottom: 4.35rem;
+}
+
+.game-casa-interativa-prompt.is-stacked-2 {
+  bottom: 7.95rem;
+}
+
+.game-casa-interativa-exit {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: auto;
+  pointer-events: auto;
+}
+
+.game-casa-interativa-change-pwd {
+  position: absolute;
+  left: 50%;
+  bottom: 4.35rem;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: auto;
+  pointer-events: auto;
+}
+
+.game-house-password {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  width: min(88%, 280px);
+  padding: 0.85rem 0.9rem;
+  border: 1px solid rgba(248, 243, 230, 0.35);
+  border-radius: 4px;
+  background: rgba(20, 20, 20, 0.95);
+  color: #f8f3e6;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.game-house-password__question {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.game-house-password__input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(248, 243, 230, 0.35);
+  border-radius: 4px;
+  background: #111;
+  color: #f8f3e6;
+  font: inherit;
+  text-align: center;
+  letter-spacing: 0.2em;
+}
+
+.game-house-password__error {
+  margin: 0;
+  color: #e57373;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.game-house-password__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
 .game-snake-exit {
   position: absolute;
   left: 50%;

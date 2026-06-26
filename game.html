@@ -82,6 +82,53 @@
             </button>
             <button
               type="button"
+              id="casa-interativa-prompt-btn"
+              class="btn btn--sm game-casa-interativa-prompt"
+              hidden
+            >
+              Quer entrar aqui?
+            </button>
+            <button
+              type="button"
+              id="casa-interativa-exit-btn"
+              class="btn btn--sm game-casa-interativa-exit"
+              hidden
+            >
+              Sair
+            </button>
+            <button
+              type="button"
+              id="casa-interativa-change-pwd-btn"
+              class="btn btn--sm game-casa-interativa-change-pwd"
+              hidden
+            >
+              Alterar senha
+            </button>
+            <div id="house-password-panel" class="game-house-password" hidden>
+              <p id="house-password-question" class="game-house-password__question">
+                Qual eh a senha pra entrar nessa casa?
+              </p>
+              <input
+                id="house-password-input"
+                class="game-house-password__input"
+                type="password"
+                inputmode="numeric"
+                maxlength="4"
+                autocomplete="off"
+                aria-label="Senha da casa"
+              />
+              <p id="house-password-error" class="game-house-password__error" hidden></p>
+              <div class="game-house-password__actions">
+                <button type="button" id="house-password-confirm-btn" class="btn btn--sm">
+                  Confirmar
+                </button>
+                <button type="button" id="house-password-cancel-btn" class="btn btn--sm">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
               id="snake-exit-btn"
               class="btn btn--sm game-snake-exit"
               hidden
@@ -180,6 +227,6 @@
       </p>
     </footer>
 
-    <script type="module" src="js/game.js?v=game59"></script>
+    <script type="module" src="js/game.js?v=game60"></script>
   </body>
 </html>

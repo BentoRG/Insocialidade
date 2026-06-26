@@ -74,3 +74,11 @@ export async function apiSaveSnakeBestScore(token, phaseId, score) {
 export async function apiSaveCharacterSkin(token, activeSkinId) {
   return apiRequest('skin_update', { token, activeSkinId });
 }
+
+export async function apiVerifyHousePassword(token, houseId, guess) {
+  return apiRequest('house_password_verify', { token, houseId, guess });
+}
+
+export async function apiSetHousePassword(token, houseId, password) {
+  return apiRequest('house_password_set', { token, houseId, password });
+}
