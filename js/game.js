@@ -228,11 +228,24 @@ function setHousePasswordError(message) {
   housePasswordError.hidden = !message;
 }
 
+function syncHousePasswordPanelVisibility() {
+  if (!housePasswordPanel) return;
+
+  const minigame = engine?.getMinigame();
+  const setPasswordOpen = Boolean(
+    engine?.isMinigameOpen() &&
+      minigame?.getKind?.() === 'house_password' &&
+      minigame?.getMode?.() === 'set'
+  );
+  const shouldShow = Boolean(activeEnterPassword) || setPasswordOpen;
+  housePasswordPanel.hidden = !shouldShow;
+}
+
 function hideEnterPasswordPanel() {
   activeEnterPassword = null;
-  if (housePasswordPanel) housePasswordPanel.hidden = true;
   if (housePasswordInput) housePasswordInput.value = '';
   setHousePasswordError('');
+  syncHousePasswordPanelVisibility();
 }
 
 function showEnterPasswordPanel(nearHouse) {
@@ -245,12 +258,12 @@ function showEnterPasswordPanel(nearHouse) {
   if (housePasswordQuestion) {
     housePasswordQuestion.textContent = 'Qual eh a senha pra entrar nessa casa?';
   }
-  if (housePasswordPanel) housePasswordPanel.hidden = false;
   if (housePasswordInput) {
     housePasswordInput.value = '';
     requestAnimationFrame(() => housePasswordInput.focus());
   }
   setHousePasswordError('');
+  syncHousePasswordPanelVisibility();
   if (casaInterativaPromptBtn) casaInterativaPromptBtn.hidden = true;
 }
 
@@ -416,9 +429,7 @@ function updateCasaInterativaControls() {
   if (casaInterativaExitBtn) casaInterativaExitBtn.hidden = !interiorOpen;
   if (casaInterativaChangePwdBtn) casaInterativaChangePwdBtn.hidden = !interiorOpen;
 
-  if (housePasswordPanel) {
-    housePasswordPanel.hidden = !activeEnterPassword && !setPasswordOpen;
-  }
+  syncHousePasswordPanelVisibility();
 
   if (setPasswordOpen || interiorOpen || activeEnterPassword) {
     if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
@@ -552,12 +563,12 @@ function openHousePassword({ houseId, interiorState }) {
   if (housePasswordQuestion) {
     housePasswordQuestion.textContent = 'Nova senha (4 digitos):';
   }
-  if (housePasswordPanel) housePasswordPanel.hidden = false;
   if (housePasswordInput) {
     housePasswordInput.value = '';
     requestAnimationFrame(() => housePasswordInput.focus());
   }
   setHousePasswordError('');
+  syncHousePasswordPanelVisibility();
 
   if (casaInterativaPromptBtn) casaInterativaPromptBtn.hidden = true;
   if (arbustoPromptBtn) arbustoPromptBtn.hidden = true;
@@ -571,7 +582,6 @@ function openHousePassword({ houseId, interiorState }) {
       setError: setHousePasswordError,
       clearError: () => setHousePasswordError(''),
       onSuccess: () => {
-        if (housePasswordPanel) housePasswordPanel.hidden = true;
         openHouseInterior({
           houseId,
           exteriorX: interiorState.exteriorX,
@@ -581,7 +591,7 @@ function openHousePassword({ houseId, interiorState }) {
       },
       onCancel: () => {
         engine.closeMinigame();
-        if (housePasswordPanel) housePasswordPanel.hidden = true;
+        syncHousePasswordPanelVisibility();
         openHouseInterior({
           houseId,
           exteriorX: interiorState.exteriorX,
@@ -827,6 +837,8 @@ function waitForLayout() {
 }
 
 async function init() {
+  hideEnterPasswordPanel();
+
   if (gameRoot) {
     gameRoot.hidden = false;
     setStatus('Verificando sessão…');
