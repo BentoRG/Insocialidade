@@ -128,7 +128,6 @@ export function createHousePasswordMinigame({
     getKind: () => 'house_password',
     getMode: () => mode,
     getHouseId: () => houseId,
-    allowsWorldMovement: () => mode === 'enter',
 
     draw(ctx, screenW, screenH) {
       ctx.save();
